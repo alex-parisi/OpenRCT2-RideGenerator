@@ -10,6 +10,7 @@ from openrct2_ride_generator.constants import PREVIEW_BOX
 from openrct2_ride_generator.sprite_renderer import (
     center_preview,
     count_stall_sprites,
+    render_building,
     render_facility,
     render_shop,
     split_facility_mesh,
@@ -39,6 +40,10 @@ def test_count_stall_sprites():
     assert count_stall_sprites("shop") == 4
     assert count_stall_sprites("toilets") == 6
     assert count_stall_sprites("first_aid") == 6
+    assert count_stall_sprites("crooked_house") == 4
+    assert count_stall_sprites("circus") == 4
+    # 4 building views + 72 ghost overlays.
+    assert count_stall_sprites("haunted_house") == 76
 
 
 def test_render_shop_four_views(tmp_path):
@@ -60,6 +65,30 @@ def test_render_shop_empty_mesh_blanks():
 
 def progress_fn(sink):
     return lambda done, total: sink.append((done, total))
+
+
+def test_render_building_four_views(tmp_path):
+    ctx = FakeContext()
+    progress = []
+    images = render_building(
+        ctx, _mesh(tmp_path, _BODY_ONLY), "circus", progress=progress_fn(progress)
+    )
+    assert len(images) == 4
+    assert sum(1 for e in ctx.events if e == "begin") == 4
+    assert progress == [(1, 4), (2, 4), (3, 4), (4, 4)]
+
+
+def test_render_building_haunted_house_appends_blank_overlays(tmp_path):
+    ctx = FakeContext()
+    progress = []
+    images = render_building(
+        ctx, _mesh(tmp_path, _BODY_ONLY), "haunted_house", progress=progress_fn(progress)
+    )
+    assert len(images) == 76
+    # Only the 4 building views render; the ghost overlays are 1x1 blanks.
+    assert sum(1 for e in ctx.events if e == "begin") == 4
+    assert progress == [(1, 4), (2, 4), (3, 4), (4, 4)]
+    assert all(img.width == 1 and img.height == 1 for img in images[4:])
 
 
 def test_split_facility_mesh(tmp_path):

@@ -31,6 +31,9 @@ STALL_TYPE_ITEMS = [
     ("information_kiosk", "Information Kiosk", "Sells maps and umbrellas (4 view sprites)"),
     ("toilets", "Toilets", "Facility guests walk into (6 view sprites, door faces +X)"),
     ("first_aid", "First Aid Room", "Facility guests walk into (6 view sprites, door faces +X)"),
+    ("crooked_house", "Crooked House", "3x3 building ride, model centred on the middle tile"),
+    ("haunted_house", "Haunted House", "3x3 building ride (ghost animation left blank)"),
+    ("circus", "Circus", "3x3 building ride, model centred on the middle tile"),
 ]
 
 SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITEMS))
@@ -54,6 +57,10 @@ MATERIAL_REGION_ITEMS = [
 
 def is_facility(stall_type: str) -> bool:
     return STALL_TYPES[stall_type] is StallKind.FACILITY
+
+
+def is_building(stall_type: str) -> bool:
+    return STALL_TYPES[stall_type] is StallKind.BUILDING
 
 
 def _scale_preset_update(self, _context):
@@ -202,6 +209,13 @@ class VGRStallSettings(PropertyGroup):
     clearance: IntProperty(
         name="Clearance",
         description="Overhead clearance in world-Z units (8 per height step); 0 = per-type default",
+        default=0,
+        min=0,
+        max=255,
+    )
+    seats: IntProperty(
+        name="Capacity",
+        description="Guests per session for building rides; 0 = per-type default",
         default=0,
         min=0,
         max=255,

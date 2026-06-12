@@ -16,15 +16,38 @@ from openrct2_x7_renderer.image import write_png
 from openrct2_x7_renderer.ray_trace import Context
 from openrct2_x7_renderer.types import IndexedImage
 
-from .constants import PREVIEW_SLOTS, StallKind
+from .constants import (
+    BUILDING_CAR_ENTRY,
+    BUILDING_TYPES_WITH_WAYPOINTS,
+    LOADING_WAYPOINTS,
+    PREVIEW_SLOTS,
+    StallKind,
+)
 from .sprite_renderer import (
     ProgressFn,
     center_preview,
+    render_building,
     render_facility,
     render_shop,
     split_facility_mesh,
 )
 from .types import Stall
+
+
+def _build_car_entry(stall: Stall) -> dict[str, Any]:
+    """The building ride's single (never vehicle-drawn) car entry."""
+    car: dict[str, Any] = dict(BUILDING_CAR_ENTRY)
+    car["numSeats"] = stall.num_seats
+    # The colour window shows the trim/tertiary pickers only when the car
+    # opts in; derive that from the remap regions the materials actually use.
+    regions = {m.region for mesh in stall.meshes for m in mesh.materials}
+    if 2 in regions:
+        car["hasAdditionalColour1"] = True
+    if 3 in regions:
+        car["hasAdditionalColour2"] = True
+    if stall.stall_type in BUILDING_TYPES_WITH_WAYPOINTS:
+        car["loadingWaypoints"] = [[list(p) for p in wp] for wp in LOADING_WAYPOINTS]
+    return car
 
 
 def build_stall_json(stall: Stall) -> dict[str, Any]:
@@ -35,19 +58,26 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
         version=stall.version,
         authors=stall.authors,
     )
+    building = stall.kind is StallKind.BUILDING
 
     properties: dict[str, Any] = {
         "type": stall.stall_type,
-        "category": "stall",
+        "category": "gentle" if building else "stall",
         "clearance": stall.clearance,
     }
+    if building:
+        # The whole-building sprites overflow the build-menu tab at full size.
+        properties["tabScale"] = 0.5
+        properties["hasShelter"] = True
     if stall.sells:
         properties["sells"] = stall.sells[0] if len(stall.sells) == 1 else list(stall.sells)
     if stall.disable_painting:
         properties["disablePainting"] = True
     properties["carsPerFlatRide"] = 1
     # The engine synthesizes the whole car entry for shop/facility ride types,
-    # so no "cars" block is emitted.
+    # so only building rides emit a "cars" block.
+    if building:
+        properties["cars"] = _build_car_entry(stall)
     properties["carColours"] = [[list(preset)] for preset in stall.car_colours]
     if stall.build_menu_priority:
         properties["buildMenuPriority"] = stall.build_menu_priority
@@ -57,6 +87,8 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
         "name": {"en-GB": stall.name},
         "description": {"en-GB": stall.description},
     }
+    if building:
+        out["strings"]["capacity"] = {"en-GB": f"{stall.num_seats} guests"}
     return out
 
 
@@ -68,6 +100,10 @@ def _render_views(
     if stall.kind is StallKind.FACILITY:
         return render_facility(
             context, combined, stall.units_per_tile, stall.facility_door_split, progress
+        )
+    if stall.kind is StallKind.BUILDING:
+        return render_building(
+            context, combined, stall.stall_type, stall.units_per_tile, progress
         )
     return render_shop(context, combined, stall.units_per_tile, progress)
 
@@ -129,7 +165,8 @@ def export_stall_test(stall: Stall, context: Context, test_dir: Path | str = "te
     """Per-view renders for fast iteration (plus the facility door/body split)."""
     test_dir = Path(test_dir)
     test_dir.mkdir(parents=True, exist_ok=True)
-    views = _render_views(stall, context)
+    # Drop the trailing blank animation overlays (haunted house ghosts).
+    views = _render_views(stall, context)[: stall.num_view_sprites]
     for i, img in enumerate(views):
         write_png(img, test_dir / f"stall_{i}.png")
     if stall.kind is StallKind.FACILITY and stall.facility_door_split:

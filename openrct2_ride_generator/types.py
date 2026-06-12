@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from openrct2_x7_renderer.mesh import Mesh
 
 from .constants import (
+    BUILDING_VIEW_SPRITES,
     FACILITY_VIEW_SPRITES,
+    HAUNTED_HOUSE_OVERLAY_SPRITES,
     PREVIEW_SLOTS,
     SHOP_VIEW_SPRITES,
     STALL_TYPES,
@@ -43,6 +45,9 @@ class Stall:
     car_colours: list[list[str]] = field(default_factory=lambda: [["black", "black", "black"]])
     build_menu_priority: int = 0
 
+    # Building rides only: the car's numSeats (= ride capacity).
+    num_seats: int = 0
+
     # Escape hatch: render the full building into the facility's directional
     # slots and leave the body overlays blank (peeps then draw in front of the
     # whole building at directions 1/2 instead of inside it).
@@ -62,8 +67,17 @@ class Stall:
     def num_view_sprites(self) -> int:
         if self.kind is StallKind.FACILITY:
             return FACILITY_VIEW_SPRITES
+        if self.kind is StallKind.BUILDING:
+            return BUILDING_VIEW_SPRITES
         return SHOP_VIEW_SPRITES
 
     @property
+    def num_overlay_sprites(self) -> int:
+        """Animation overlays after the view sprites (haunted house ghosts)."""
+        if self.stall_type == "haunted_house":
+            return HAUNTED_HOUSE_OVERLAY_SPRITES
+        return 0
+
+    @property
     def num_sprites(self) -> int:
-        return PREVIEW_SLOTS + self.num_view_sprites
+        return PREVIEW_SLOTS + self.num_view_sprites + self.num_overlay_sprites

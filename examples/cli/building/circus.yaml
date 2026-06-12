@@ -1,0 +1,25 @@
+id: openrct2rg.ride.big_top_circus
+name: Big Top Circus
+description: A striped big-top tent hosting a circus animal show
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# 3x3 building flat ride: 4 view sprites of the whole tent, anchored at the
+# middle tile. Capacity (numSeats) defaults per type; circus = 30.
+ride_type: circus
+
+# Tent wall is Remap1, roof is Remap2, so painting stays enabled and presets
+# offer main + first additional colours.
+disable_painting: false
+car_colours:
+  - [bright_red, yellow, black]
+  - [light_purple, white, black]
+  - [bordeaux_red, light_orange, black]
+
+meshes:
+  - circus_tent.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

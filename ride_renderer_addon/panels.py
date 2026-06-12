@@ -5,7 +5,7 @@ per-object role + per-material region."""
 import bpy
 from bpy.types import Panel, UIList
 
-from .props import is_facility
+from .props import is_building, is_facility
 
 
 class VGR_UL_presets(UIList):
@@ -50,10 +50,12 @@ class VGR_PT_stall(Panel):
         box = layout.box()
         box.label(text="Stall", icon="HOME")
         box.prop(ss, "stall_type")
-        facility = is_facility(ss.stall_type)
-        if facility:
+        if is_facility(ss.stall_type):
             box.prop(ss, "facility_door_split")
             box.label(text="Model the door facing +X.", icon="INFO")
+        elif is_building(ss.stall_type):
+            box.prop(ss, "seats")
+            box.label(text="3x3 footprint, centred on the origin tile.", icon="INFO")
         else:
             row = box.row(align=True)
             row.prop(ss, "sells_1", text="Sells")

@@ -97,6 +97,58 @@ def test_build_stall_json_colour_presets(tmp_path):
     ]
 
 
+def test_build_stall_json_building_shape(tmp_path):
+    j = build_stall_json(_stall(tmp_path, ride_type="circus", sells=None))
+    p = j["properties"]
+    assert p["type"] == "circus"
+    assert p["category"] == "gentle"
+    assert p["tabScale"] == 0.5
+    assert p["hasShelter"] is True
+    assert p["clearance"] == 128
+    assert "sells" not in p
+    assert p["carsPerFlatRide"] == 1
+    car = p["cars"]
+    assert car["numSeats"] == 30
+    assert car["spacing"] == 139456
+    assert car["frames"] == {"flat": True}
+    assert car["recalculateSpriteBounds"] is True
+    assert len(car["loadingWaypoints"]) == 16
+    # The plain test material uses no remap regions.
+    assert "hasAdditionalColour1" not in car
+    assert "hasAdditionalColour2" not in car
+    assert j["strings"]["capacity"] == {"en-GB": "30 guests"}
+
+
+def test_build_stall_json_crooked_house_has_no_waypoints(tmp_path):
+    j = build_stall_json(_stall(tmp_path, ride_type="crooked_house", sells=None, seats=8))
+    car = j["properties"]["cars"]
+    assert car["numSeats"] == 8
+    assert "loadingWaypoints" not in car
+    assert j["strings"]["capacity"] == {"en-GB": "8 guests"}
+
+
+def test_build_stall_json_building_remap_materials_enable_colours(tmp_path):
+    (tmp_path / "r.mtl").write_text(
+        "newmtl Remap2\nKd 0.5 0.5 0.5\nnewmtl Remap3\nKd 0.5 0.5 0.5\n"
+    )
+    (tmp_path / "r.obj").write_text(
+        "mtllib r.mtl\n"
+        "usemtl Remap2\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"
+        "usemtl Remap3\nv 0 0 1\nv 1 0 1\nv 0 1 1\nf 4 5 6\n"
+    )
+    config = {
+        "id": "openrct2rg.ride.b",
+        "name": "B",
+        "description": "A building",
+        "ride_type": "haunted_house",
+        "model": [{"mesh_index": 0, "position": [0, 0, 0]}],
+    }
+    stall = build_stall(config, [load_mesh(tmp_path / "r.obj")])
+    car = build_stall_json(stall)["properties"]["cars"]
+    assert car["hasAdditionalColour1"] is True
+    assert car["hasAdditionalColour2"] is True
+
+
 def test_export_stall_to_writes_parkobj_with_seven_images(tmp_path):
     stall = _stall(tmp_path)
     ctx = FakeContext()
@@ -124,6 +176,38 @@ def test_export_stall_to_facility_nine_images(tmp_path):
     with zipfile.ZipFile(tmp_path / "f.parkobj") as zf:
         j = json.loads(zf.read("object.json"))
     assert j["images"] == ["$LGX:images.dat[0..8]"]
+
+
+def test_export_stall_to_building_seven_images(tmp_path):
+    stall = _stall(tmp_path, ride_type="crooked_house", sells=None)
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "b.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "b.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    assert j["images"] == ["$LGX:images.dat[0..6]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 4
+
+
+def test_export_stall_to_haunted_house_includes_ghost_blanks(tmp_path):
+    stall = _stall(tmp_path, ride_type="haunted_house", sells=None)
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "h.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "h.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    # 3 previews + 4 views + 72 blank ghost overlays.
+    assert j["images"] == ["$LGX:images.dat[0..78]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 4
+
+
+def test_export_stall_test_building_writes_only_view_pngs(tmp_path):
+    stall = _stall(tmp_path, ride_type="haunted_house", sells=None)
+    test_dir = tmp_path / "test"
+    export_stall_test(stall, FakeContext(), test_dir)
+    for i in range(4):
+        assert (test_dir / f"stall_{i}.png").exists()
+    # The 72 blank ghost overlays are not written.
+    assert not (test_dir / "stall_4.png").exists()
+    assert (test_dir / "preview.png").exists()
 
 
 def test_export_stall_to_skip_render_reuses_previous_images(tmp_path):

@@ -13,6 +13,7 @@ from openrct2_object_common.blender.mesh_extract import (
     material_base,
     object_position,
 )
+from openrct2_ride_generator.constants import STALL_TYPES, StallKind
 from openrct2_ride_generator.loader import build_stall
 from openrct2_ride_generator.types import Stall
 from openrct2_x7_renderer.constants import MaterialFlag
@@ -91,6 +92,7 @@ def build_stall_from_scene(context) -> Stall:
 
     authors = [a.strip() for a in ss.authors.split(",") if a.strip()]
 
+    kind = STALL_TYPES[ss.stall_type]
     config: dict = {
         "object_type": "ride",
         "id": ss.id,
@@ -100,11 +102,16 @@ def build_stall_from_scene(context) -> Stall:
         "version": ss.version,
         "units_per_tile": float(ss.units_per_tile),
         "ride_type": ss.stall_type,
-        "sells": _sells(ss),
         "disable_painting": ss.disable_painting,
         "facility_door_split": ss.facility_door_split,
         "model": model,
     }
+    # The sells/seats UI fields keep stale values when the type changes, so
+    # only the fields the chosen kind accepts are forwarded.
+    if kind is StallKind.SHOP:
+        config["sells"] = _sells(ss)
+    if kind is StallKind.BUILDING and ss.seats > 0:
+        config["seats"] = int(ss.seats)
     if ss.clearance > 0:
         config["clearance"] = int(ss.clearance)
     if ss.colour_presets:

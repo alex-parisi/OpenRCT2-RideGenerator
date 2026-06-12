@@ -19,8 +19,10 @@ from openrct2_x7_renderer.ray_trace import VIEWS, Context
 from openrct2_x7_renderer.types import IndexedImage
 
 from .constants import (
+    BUILDING_VIEW_SPRITES,
     FACILITY_DOOR_BAND_FRACTION,
     FACILITY_VIEW_SPRITES,
+    HAUNTED_HOUSE_OVERLAY_SPRITES,
     PREVIEW_BOX,
     SHOP_VIEW_SPRITES,
     STALL_TYPES,
@@ -33,9 +35,13 @@ _IDENTITY3 = np.eye(3, dtype=np.float64)
 
 
 def count_stall_sprites(stall_type: str) -> int:
-    """View sprites for a stall type (the 3 preview slots are extra)."""
+    """View sprites for a stall type (the 3 preview slots are extra;
+    haunted house ghost overlays count as view sprites here)."""
     if STALL_TYPES[stall_type] is StallKind.FACILITY:
         return FACILITY_VIEW_SPRITES
+    if STALL_TYPES[stall_type] is StallKind.BUILDING:
+        extra = HAUNTED_HOUSE_OVERLAY_SPRITES if stall_type == "haunted_house" else 0
+        return BUILDING_VIEW_SPRITES + extra
     return SHOP_VIEW_SPRITES
 
 
@@ -82,6 +88,28 @@ def render_shop(
         images.append(_render_direction(context, combined, d, units_per_tile))
         if progress is not None:
             progress(d + 1, SHOP_VIEW_SPRITES)
+    return images
+
+
+def render_building(
+    context: Context,
+    combined: Mesh,
+    stall_type: str,
+    units_per_tile: float = TILE_SIZE,
+    progress: ProgressFn | None = None,
+) -> list[IndexedImage]:
+    """Render a 3x3 building sprite set: image k is the whole building at view
+    direction k, anchored at the centre tile's reference corner (the mesh is
+    authored centred on the middle tile). Haunted house gets 72 blank ghost
+    overlays appended (base + 3 + direction * 18 + frame) so the engine never
+    paints a stray image while the ride is operating."""
+    images = []
+    for d in range(BUILDING_VIEW_SPRITES):
+        images.append(_render_direction(context, combined, d, units_per_tile))
+        if progress is not None:
+            progress(d + 1, BUILDING_VIEW_SPRITES)
+    if stall_type == "haunted_house":
+        images += [IndexedImage.blank(1, 1)] * HAUNTED_HOUSE_OVERLAY_SPRITES
     return images
 
 

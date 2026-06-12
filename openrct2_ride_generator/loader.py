@@ -27,6 +27,7 @@ from openrct2_x7_renderer.types import IndexedImage, MeshFrame, Model
 from .constants import (
     COLOR_NAMES,
     DEFAULT_CLEARANCE,
+    DEFAULT_NUM_SEATS,
     MAX_SELLS,
     SHOP_ITEMS,
     STALL_TYPES,
@@ -112,11 +113,24 @@ def _load_sells(root: dict[str, Any], ride_type: str) -> list[str]:
         if len(sells) > MAX_SELLS:
             raise LoadError(f'Property "sells" lists {len(sells)} items (max {MAX_SELLS})')
 
-    if sells and STALL_TYPES[ride_type] is StallKind.FACILITY:
-        raise LoadError(f'A "{ride_type}" facility cannot have a "sells" property')
+    kind = STALL_TYPES[ride_type]
+    if sells and kind is not StallKind.SHOP:
+        noun = "facility" if kind is StallKind.FACILITY else "building ride"
+        raise LoadError(f'A "{ride_type}" {noun} cannot have a "sells" property')
     if not sells and ride_type in ("food_stall", "drink_stall"):
         log.warning("%s with no sells items: the stall will sell nothing", ride_type)
     return sells
+
+
+def _load_seats(root: dict[str, Any], ride_type: str) -> int:
+    """Building rides only: the car's numSeats (= ride capacity)."""
+    default = DEFAULT_NUM_SEATS.get(ride_type, 0)
+    seats = optional_int(root, "seats", default)
+    if seats != default and STALL_TYPES[ride_type] is not StallKind.BUILDING:
+        raise LoadError(f'A "{ride_type}" ride cannot have a "seats" property')
+    if STALL_TYPES[ride_type] is StallKind.BUILDING and not 1 <= seats <= 255:
+        raise LoadError(f'Property "seats" must be 1-255, got {seats}')
+    return seats
 
 
 def _load_clearance(root: dict[str, Any], ride_type: str) -> int:
@@ -156,6 +170,7 @@ def build_stall(
     obj.stall_type = _load_ride_type(root)
     obj.sells = _load_sells(root, obj.stall_type)
     obj.clearance = _load_clearance(root, obj.stall_type)
+    obj.num_seats = _load_seats(root, obj.stall_type)
     obj.disable_painting = optional_bool(root, "disable_painting", True)
     obj.car_colours = _load_car_colours(root)
     obj.build_menu_priority = optional_int(root, "build_menu_priority", 0)
