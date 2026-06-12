@@ -1,0 +1,25 @@
+id: openrct2rg.ride.balloon_stand
+name: Balloon Stand
+description: A souvenir stall selling helium-filled balloons
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+ride_type: shop
+sells: balloon
+
+# The canopy uses the Remap1 material, so leave painting enabled and offer a
+# few colour presets (clearance defaults per ride type; shop = 56).
+disable_painting: false
+car_colours:
+  - [light_blue, black, black]
+  - [bright_red, black, black]
+  - [bright_green, black, black]
+  - [yellow, black, black]
+
+meshes:
+  - balloon_stand.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

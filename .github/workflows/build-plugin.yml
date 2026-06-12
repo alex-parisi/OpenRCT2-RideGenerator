@@ -1,0 +1,88 @@
+name: build-plugin
+
+# Package the ride_renderer_addon Blender add-on into per-platform extension zips
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+env:
+  BLENDER_SERIES: "4.5"
+  BLENDER_VERSION: "4.5.4"
+
+jobs:
+  package-extension:
+    name: package-extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pin version from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="0.0.0"
+          fi
+          python scripts/ci/set_version.py "$VERSION"
+
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build "numpy>=1.26" "pillow>=10.0" "pyyaml>=6.0"
+
+      - name: Build front-end wheel
+        run: python -m build --wheel --outdir dist
+
+      # Stage the add-on's wheels
+      - name: Bundle wheels + regenerate manifest
+        run: |
+          mkdir -p ride_renderer_addon/wheels
+          cp dist/openrct2_ridegenerator-*.whl ride_renderer_addon/wheels/
+          python scripts/collect_wheels.py
+
+      - name: Install Blender runtime libs
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libxrender1 libxxf86vm1 \
+            libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1
+
+      - name: Install Blender (for packaging only)
+        run: |
+          base="https://download.blender.org/release/Blender${BLENDER_SERIES}"
+          tarball="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          curl -fL -o /tmp/blender.tar.xz "$base/$tarball"
+          sudo mkdir -p /opt/blender
+          sudo tar -xJf /tmp/blender.tar.xz -C /opt/blender --strip-components=1
+          echo "/opt/blender" >> "$GITHUB_PATH"
+
+      - name: Build per-platform extensions
+        run: |
+          xvfb-run -a blender --version
+          mkdir -p out
+          xvfb-run -a blender --command extension build \
+            --source-dir ride_renderer_addon --split-platforms --output-dir out
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: blender-extension
+          path: out/*.zip
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" out/*.zip \
+            --title "$GITHUB_REF_NAME" --generate-notes \
+          || gh release upload "$GITHUB_REF_NAME" out/*.zip --clobber

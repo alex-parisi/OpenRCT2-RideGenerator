@@ -1,0 +1,141 @@
+"""
+Build object.json and assemble the stall .parkobj ZIP.
+"""
+
+from pathlib import Path
+from typing import Any
+
+from openrct2_object_common.objectjson import object_json_header
+from openrct2_object_common.parkobj import (
+    assemble_parkobj,
+    combine_indexed_images,
+    write_images_dat_lgx,
+)
+from openrct2_x7_renderer.geometry import combine_model_world
+from openrct2_x7_renderer.image import write_png
+from openrct2_x7_renderer.ray_trace import Context
+from openrct2_x7_renderer.types import IndexedImage
+
+from .constants import PREVIEW_SLOTS, StallKind
+from .sprite_renderer import (
+    ProgressFn,
+    center_preview,
+    render_facility,
+    render_shop,
+    split_facility_mesh,
+)
+from .types import Stall
+
+
+def build_stall_json(stall: Stall) -> dict[str, Any]:
+    out = object_json_header(
+        stall.id,
+        object_type="ride",
+        original_id=stall.original_id,
+        version=stall.version,
+        authors=stall.authors,
+    )
+
+    properties: dict[str, Any] = {
+        "type": stall.stall_type,
+        "category": "stall",
+        "clearance": stall.clearance,
+    }
+    if stall.sells:
+        properties["sells"] = stall.sells[0] if len(stall.sells) == 1 else list(stall.sells)
+    if stall.disable_painting:
+        properties["disablePainting"] = True
+    properties["carsPerFlatRide"] = 1
+    # The engine synthesizes the whole car entry for shop/facility ride types,
+    # so no "cars" block is emitted.
+    properties["carColours"] = [[list(preset)] for preset in stall.car_colours]
+    if stall.build_menu_priority:
+        properties["buildMenuPriority"] = stall.build_menu_priority
+    out["properties"] = properties
+
+    out["strings"] = {
+        "name": {"en-GB": stall.name},
+        "description": {"en-GB": stall.description},
+    }
+    return out
+
+
+def _render_views(
+    stall: Stall, context: Context, progress: ProgressFn | None = None
+) -> list[IndexedImage]:
+    """Render the stall's view sprites in the engine's image order."""
+    combined = combine_model_world(stall.meshes, stall.model)
+    if stall.kind is StallKind.FACILITY:
+        return render_facility(
+            context, combined, stall.units_per_tile, stall.facility_door_split, progress
+        )
+    return render_shop(context, combined, stall.units_per_tile, progress)
+
+
+def _preview_image(stall: Stall, views: list[IndexedImage]) -> IndexedImage:
+    """The user-supplied preview PNG, or the direction-0 view sprite re-anchored
+    to centre in the ride window's preview box."""
+    if stall.preview is not None:
+        return stall.preview
+    # For facilities image 2 is the direction-0 full building (image 0 is the
+    # direction-2 door wall); for shops image 0 is direction 0.
+    front = views[2] if stall.kind is StallKind.FACILITY else views[0]
+    return center_preview(front)
+
+
+def _render_sprites(
+    stall: Stall,
+    context: Context,
+    object_dir: Path,
+    progress: ProgressFn | None = None,
+) -> list[str]:
+    views = _render_views(stall, context, progress)
+    images = [_preview_image(stall, views)] * PREVIEW_SLOTS + views
+    return write_images_dat_lgx(images, object_dir)
+
+
+def export_stall_to(
+    stall: Stall,
+    context: Context,
+    parkobj_path: Path | str,
+    work_dir: Path | str,
+    skip_render: bool = False,
+    progress: ProgressFn | None = None,
+) -> None:
+    """Render the sprites (or reuse a previous render) and zip object.json +
+    images.dat into the parkobj."""
+    assemble_parkobj(
+        build_stall_json(stall),
+        Path(parkobj_path),
+        Path(work_dir),
+        lambda wd: _render_sprites(stall, context, wd, progress),
+        skip_render=skip_render,
+    )
+
+
+def export_stall(
+    stall: Stall, context: Context, output_directory: Path | str, skip_render: bool = False
+) -> None:
+    export_stall_to(
+        stall,
+        context,
+        Path(output_directory) / f"{stall.id}.parkobj",
+        Path("object"),
+        skip_render=skip_render,
+    )
+
+
+def export_stall_test(stall: Stall, context: Context, test_dir: Path | str = "test") -> None:
+    """Per-view renders for fast iteration (plus the facility door/body split)."""
+    test_dir = Path(test_dir)
+    test_dir.mkdir(parents=True, exist_ok=True)
+    views = _render_views(stall, context)
+    for i, img in enumerate(views):
+        write_png(img, test_dir / f"stall_{i}.png")
+    if stall.kind is StallKind.FACILITY and stall.facility_door_split:
+        combined = combine_model_world(stall.meshes, stall.model)
+        door, body = split_facility_mesh(combined, stall.units_per_tile)
+        note = f"door {door.faces.shape[0]} faces / body {body.faces.shape[0]} faces"
+        (test_dir / "door_split.txt").write_text(note + "\n")
+    write_png(_preview_image(stall, views), test_dir / "preview.png")
+    write_png(combine_indexed_images(views), test_dir / "preview_combined.png")

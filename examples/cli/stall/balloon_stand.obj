@@ -1,0 +1,62 @@
+# Balloon stand (shop) for the stall example.
+# OBJ space: +X forward, +Y up, +Z right. Origin at the footprint-base centre.
+# Footprint ~2.6x2.6 units, canopy to ~2.5 units tall (1 tile = 3.3 units).
+mtllib materials.mtl
+
+# Booth body (y = 0 .. 1.7), half-extent 1.3
+v -1.3 0.0 -1.3
+v  1.3 0.0 -1.3
+v  1.3 0.0  1.3
+v -1.3 0.0  1.3
+v -1.3 1.7 -1.3
+v  1.3 1.7 -1.3
+v  1.3 1.7  1.3
+v -1.3 1.7  1.3
+# Canopy base ring (y = 1.7), half-extent 1.5 (overhang)
+v -1.5 1.7 -1.5
+v  1.5 1.7 -1.5
+v  1.5 1.7  1.5
+v -1.5 1.7  1.5
+# Canopy apex
+v  0.0 2.5  0.0
+
+vn  0.0 -1.0  0.0
+vn  0.0  1.0  0.0
+vn  0.0  0.0 -1.0
+vn  0.0  0.0  1.0
+vn -1.0  0.0  0.0
+vn  1.0  0.0  0.0
+# Canopy slope normals (rise 0.8 over run 1.5, normalized)
+vn  0.47  0.88  0.0
+vn -0.47  0.88  0.0
+vn  0.0   0.88 -0.47
+vn  0.0   0.88  0.47
+
+usemtl Wood
+
+# Booth bottom
+f 1//1 2//1 3//1
+f 1//1 3//1 4//1
+# Booth -Z wall
+f 1//3 5//3 6//3
+f 1//3 6//3 2//3
+# Booth +Z wall
+f 4//4 3//4 7//4
+f 4//4 7//4 8//4
+# Booth -X wall
+f 1//5 4//5 8//5
+f 1//5 8//5 5//5
+# Booth +X wall (serving counter side)
+f 2//6 6//6 7//6
+f 2//6 7//6 3//6
+
+usemtl Remap1
+
+# Canopy underside
+f 9//1 10//1 11//1
+f 9//1 11//1 12//1
+# Canopy slopes to the apex
+f 9//9 13//9 10//9
+f 11//10 13//10 12//10
+f 10//7 13//7 11//7
+f 12//8 13//8 9//8

@@ -1,0 +1,18 @@
+id: openrct2rg.ride.brick_toilets
+name: Brick Toilets
+description: A small brick toilet block
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Facility: 6 view sprites; the door wall (authored facing OBJ +X) is split
+# into its own sprite so guests sort into the doorway. Toilets sell nothing
+# and default to clearance 32.
+ride_type: toilets
+
+meshes:
+  - toilets.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}
