@@ -38,8 +38,6 @@ class VGR_PT_stall(Panel):
         layout.prop(ss, "scale_preset")
         if ss.scale_preset == "CUSTOM":
             layout.prop(ss, "units_per_tile")
-        layout.prop(ss, "dither")
-
         box = layout.box()
         box.label(text="Identity", icon="INFO")
         box.prop(ss, "id")
@@ -47,6 +45,11 @@ class VGR_PT_stall(Panel):
         box.prop(ss, "description")
         box.prop(ss, "authors")
         box.prop(ss, "version")
+
+        box = layout.box()
+        box.label(text="Dither", icon="MOD_NOISE")
+        box.prop(ss, "dither")
+        box.prop(ss, "dither_stability")
 
         box = layout.box()
         box.label(text="Stall", icon="HOME")
@@ -90,8 +93,10 @@ def _draw_lights(layout, ss):
     box = layout.box()
     row = box.row()
     row.prop(
-        ss, "show_lights",
-        icon="TRIA_DOWN" if ss.show_lights else "TRIA_RIGHT", emboss=False,
+        ss,
+        "show_lights",
+        icon="TRIA_DOWN" if ss.show_lights else "TRIA_RIGHT",
+        emboss=False,
     )
     row.label(text="", icon="LIGHT_SUN")
     if ss.show_lights:
@@ -154,8 +159,13 @@ def _draw_object_settings(layout, obj):
         return
     if len(obj.material_slots) > 1:
         box.template_list(
-            "MATERIAL_UL_matslots", "", obj, "material_slots",
-            obj, "active_material_index", rows=2,
+            "MATERIAL_UL_matslots",
+            "",
+            obj,
+            "material_slots",
+            obj,
+            "active_material_index",
+            rows=2,
         )
     mat = obj.active_material
     if mat is None:

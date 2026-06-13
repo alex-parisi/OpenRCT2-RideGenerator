@@ -36,6 +36,7 @@ class _StallModalBase(RenderModalBase):
     def _prepare(self, context, payload) -> None:
         self._lights = lights_from_items(context.scene.vgr_stall.lights)
         self._dither = context.scene.vgr_stall.dither
+        self._dither_stability = context.scene.vgr_stall.dither_stability
 
 
 # The previous test render's output directory. Its PNG must outlive the
@@ -62,7 +63,13 @@ class VGR_OT_test_render(_StallModalBase):
 
     def _render(self, payload) -> None:
         # Render at the real in-game scale
-        ctx = make_context(self._lights, payload.units_per_tile, False, dither=self._dither)
+        ctx = make_context(
+            self._lights,
+            payload.units_per_tile,
+            False,
+            dither=self._dither,
+            stability=self._dither_stability,
+        )
         export_stall_test(payload, ctx, self._tmp)
         self._png = os.path.join(self._tmp, "preview_combined.png")
 
@@ -102,7 +109,13 @@ class VGR_OT_export_parkobj(_StallModalBase):
         self._work = tempfile.mkdtemp(prefix="vgr_export_")
 
     def _render(self, payload) -> None:
-        ctx = make_context(self._lights, payload.units_per_tile, False, dither=self._dither)
+        ctx = make_context(
+            self._lights,
+            payload.units_per_tile,
+            False,
+            dither=self._dither,
+            stability=self._dither_stability,
+        )
         try:
             export_stall_to(payload, ctx, self._parkobj, self._work, progress=self.set_progress)
         finally:
