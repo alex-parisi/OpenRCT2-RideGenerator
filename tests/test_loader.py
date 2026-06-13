@@ -270,6 +270,60 @@ def test_model_empty_slot_and_orientation(tmp_path):
     assert len(stall.model.meshes) == 2
     assert stall.model.meshes[0][0].mesh_index == -1
     assert list(stall.model.meshes[1][0].orientation) == [0, 90, 0]
+    assert stall.door_model.meshes == []
+
+
+def test_facility_door_marked_placements(tmp_path):
+    stall = build_stall(
+        _config(
+            ride_type="toilets",
+            sells=None,
+            model=[
+                {"mesh_index": 0},
+                {"mesh_index": 0, "position": [1, 0, 0], "door": True},
+            ],
+        ),
+        _meshes(tmp_path),
+    )
+    assert len(stall.model.meshes) == 2
+    assert len(stall.door_model.meshes) == 1
+    # The door model shares the placement (same frame) with the full model.
+    assert stall.door_model.meshes[0] is stall.model.meshes[1]
+
+
+def test_door_flag_on_shop_rejected(tmp_path):
+    with pytest.raises(LoadError, match="door"):
+        build_stall(
+            _config(model=[{"mesh_index": 0, "door": True}]),
+            _meshes(tmp_path),
+        )
+
+
+def test_non_bool_door_flag_rejected(tmp_path):
+    with pytest.raises(LoadError, match="door"):
+        build_stall(
+            _config(
+                ride_type="toilets",
+                sells=None,
+                model=[{"mesh_index": 0, "door": "yes"}],
+            ),
+            _meshes(tmp_path),
+        )
+
+
+def test_facility_without_door_mark_warns(tmp_path, caplog):
+    with caplog.at_level(logging.WARNING):
+        build_stall(_config(ride_type="toilets", sells=None), _meshes(tmp_path))
+    assert "door" in caplog.text
+
+
+def test_facility_split_disabled_no_door_warning(tmp_path, caplog):
+    with caplog.at_level(logging.WARNING):
+        build_stall(
+            _config(ride_type="toilets", sells=None, facility_door_split=False),
+            _meshes(tmp_path),
+        )
+    assert caplog.text == ""
 
 
 def test_load_stall_from_json_file(tmp_path):

@@ -1,0 +1,17 @@
+# Doorway slab for the toilets example, slightly proud of the +X wall
+# (y = 0 .. 1.2, z = -0.4 .. 0.4). Its placement in toilets.yaml is marked
+# `door: true`: the generator renders it alone to find the doorway's screen
+# extent and cuts the door sprite strip there.
+mtllib materials.mtl
+
+v  1.41 0.0 -0.4
+v  1.41 0.0  0.4
+v  1.41 1.2  0.4
+v  1.41 1.2 -0.4
+
+vn  1.0  0.0  0.0
+
+usemtl DoorWood
+
+f 1//1 4//1 3//1
+f 1//1 3//1 2//1

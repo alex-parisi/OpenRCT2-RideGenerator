@@ -6,13 +6,16 @@ version: "1.0"
 
 output_directory: .
 
-# Facility: 6 view sprites; the door wall (authored facing OBJ +X) is split
-# into its own sprite so guests sort into the doorway. Toilets sell nothing
-# and default to clearance 32.
+# Facility: 6 view sprites. The doorway mesh (authored facing OBJ +X) is
+# marked `door: true`: the generator cuts the door sprite out of the full
+# building at the doorway's screen extent so guests sort into it. Toilets
+# sell nothing and default to clearance 32.
 ride_type: toilets
 
 meshes:
   - toilets.obj
+  - toilets_door.obj
 
 model:
   - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}
+  - {mesh_index: 1, position: [0, 0, 0], orientation: [0, 0, 0], door: true}

@@ -69,6 +69,7 @@ def build_stall_from_scene(context) -> Stall:
     scene = context.scene
     ss = scene.vgr_stall
     depsgraph = context.evaluated_depsgraph_get()
+    kind = STALL_TYPES[ss.stall_type]
 
     meshes: list[Mesh] = []
     model: list[dict] = []
@@ -78,11 +79,16 @@ def build_stall_from_scene(context) -> Stall:
             continue
         idx = len(meshes)
         meshes.append(mesh)
-        model.append({
+        entry: dict = {
             "mesh_index": idx,
             "position": object_position(obj),
             "orientation": [0, 0, 0],
-        })
+        }
+        # The Door role only means something to facilities; like the sells/
+        # seats fields, it is not forwarded for other kinds (loader rejects it).
+        if kind is StallKind.FACILITY and obj.vgr_object.role == "DOOR":
+            entry["door"] = True
+        model.append(entry)
 
     if not meshes:
         raise SceneError(
@@ -92,7 +98,6 @@ def build_stall_from_scene(context) -> Stall:
 
     authors = [a.strip() for a in ss.authors.split(",") if a.strip()]
 
-    kind = STALL_TYPES[ss.stall_type]
     config: dict = {
         "object_type": "ride",
         "id": ss.id,

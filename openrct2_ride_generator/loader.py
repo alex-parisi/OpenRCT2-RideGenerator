@@ -60,12 +60,14 @@ def _load_identity(obj: Stall, root: dict[str, Any], preview: IndexedImage | Non
     obj.units_per_tile = _load_units_per_tile(root)
 
 
-def _load_model(value: Any, num_meshes: int) -> Model:
-    """Parse the single-frame model placement list into a Model."""
+def _load_model(value: Any, num_meshes: int) -> tuple[Model, Model]:
+    """Parse the single-frame model placement list into (model, door_model):
+    all placements, plus the `door: true` subset (the facility doorway)."""
     if value is None:
         raise LoadError('Property "model" not found')
     arr = as_array_or_wrap(value)
     meshes_out: list[list[MeshFrame]] = []
+    door_out: list[list[MeshFrame]] = []
     for elem in arr:
         if not isinstance(elem, dict):
             raise LoadError('Property "model" is not an object')
@@ -82,8 +84,11 @@ def _load_model(value: Any, num_meshes: int) -> Model:
             if prop is not None:
                 kwargs[key] = read_vector3(prop)
 
-        meshes_out.append([MeshFrame(**kwargs)])
-    return Model(meshes=meshes_out)
+        frame = [MeshFrame(**kwargs)]
+        meshes_out.append(frame)
+        if optional_bool(elem, "door", False):
+            door_out.append(frame)
+    return Model(meshes=meshes_out), Model(meshes=door_out)
 
 
 def _load_ride_type(root: dict[str, Any]) -> str:
@@ -177,7 +182,18 @@ def build_stall(
     obj.facility_door_split = optional_bool(root, "facility_door_split", True)
 
     obj.meshes = list(meshes)
-    obj.model = _load_model(root.get("model"), len(obj.meshes))
+    obj.model, obj.door_model = _load_model(root.get("model"), len(obj.meshes))
+    if obj.door_model.meshes and obj.kind is not StallKind.FACILITY:
+        raise LoadError(
+            f'Only facilities can mark "door" model entries '
+            f'(ride_type "{obj.stall_type}")'
+        )
+    if obj.kind is StallKind.FACILITY and obj.facility_door_split and not obj.door_model.meshes:
+        log.warning(
+            "facility has no door-marked mesh: rendering without the door split "
+            '(mark the doorway placement with "door: true", '
+            'or set facility_door_split: false)'
+        )
     return obj
 
 

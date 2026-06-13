@@ -29,7 +29,6 @@ from .sprite_renderer import (
     render_building,
     render_facility,
     render_shop,
-    split_facility_mesh,
 )
 from .types import Stall
 
@@ -98,9 +97,12 @@ def _render_views(
     """Render the stall's view sprites in the engine's image order."""
     combined = combine_model_world(stall.meshes, stall.model)
     if stall.kind is StallKind.FACILITY:
-        return render_facility(
-            context, combined, stall.units_per_tile, stall.facility_door_split, progress
+        door = (
+            combine_model_world(stall.meshes, stall.door_model)
+            if stall.facility_door_split
+            else None
         )
+        return render_facility(context, combined, door, stall.units_per_tile, progress)
     if stall.kind is StallKind.BUILDING:
         return render_building(
             context, combined, stall.stall_type, stall.units_per_tile, progress
@@ -114,7 +116,7 @@ def _preview_image(stall: Stall, views: list[IndexedImage]) -> IndexedImage:
     if stall.preview is not None:
         return stall.preview
     # For facilities image 2 is the direction-0 full building (image 0 is the
-    # direction-2 door wall); for shops image 0 is direction 0.
+    # direction-2 doorway strip); for shops image 0 is direction 0.
     front = views[2] if stall.kind is StallKind.FACILITY else views[0]
     return center_preview(front)
 
@@ -170,9 +172,8 @@ def export_stall_test(stall: Stall, context: Context, test_dir: Path | str = "te
     for i, img in enumerate(views):
         write_png(img, test_dir / f"stall_{i}.png")
     if stall.kind is StallKind.FACILITY and stall.facility_door_split:
-        combined = combine_model_world(stall.meshes, stall.model)
-        door, body = split_facility_mesh(combined, stall.units_per_tile)
-        note = f"door {door.faces.shape[0]} faces / body {body.faces.shape[0]} faces"
+        door = combine_model_world(stall.meshes, stall.door_model)
+        note = f"door {door.faces.shape[0]} faces (strip cut at the door mesh's screen extent)"
         (test_dir / "door_split.txt").write_text(note + "\n")
     write_png(_preview_image(stall, views), test_dir / "preview.png")
     write_png(combine_indexed_images(views), test_dir / "preview_combined.png")

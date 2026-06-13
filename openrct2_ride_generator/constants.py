@@ -142,7 +142,8 @@ PREVIEW_SLOTS = 3
 SHOP_VIEW_SPRITES = 4
 
 # Facility.cpp uses base + ((direction + 2) & 3) plus two body overlays
-# (indices +4 at direction 2 and +2 at direction 1).
+# (indices +4 at direction 2 and +2 at direction 1, painted over the door
+# sprite: their top-slab bound box sorts above the door wall's).
 FACILITY_VIEW_SPRITES = 6
 
 # The 3x3 building painters (CrookedHouse/HauntedHouse/Circus.cpp) paint
@@ -207,11 +208,6 @@ LOADING_WAYPOINTS: list[list[list[int]]] = [
     [[-40, -40], [0, -36], [0, -36]],
     [[-40, 40], [-40, -40], [0, -36]],
 ]
-
-# A facility's door wall is the slab Facility.cpp paints with a {28, 8} bound
-# box (8 of 32 world units deep, +2 margin): faces within this fraction of a
-# tile from the door edge belong to the door-wall sprite.
-FACILITY_DOOR_BAND_FRACTION = 10.0 / 32.0
 
 # The ride build-menu preview box is 112x112 pixels.
 PREVIEW_BOX = 112

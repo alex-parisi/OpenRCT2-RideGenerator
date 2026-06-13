@@ -81,10 +81,15 @@ OBJ meshes use **+X = forward**, **+Y = up**, **+Z = right**, with one tile =
 classified by **name** (`Remap1`/`Remap2`/`Remap3` for colour remap regions).
 
 **Facilities (toilets / first aid) must be authored with the door facing
-OBJ +X** (the same +X axis in Blender): the engine draws the door wall as a
-separate sprite at two view directions so guests sort into the doorway, and the
-generator splits the mesh along that edge (`facility_door_split: false`
-disables the split). The anchoring rules are documented inline in
+OBJ +X** (the same +X axis in Blender), with the doorway (door + frame) as a
+separate marked mesh: give the object the **Door** role in Blender, or mark
+its placement `door: true` in a config (see
+`examples/cli/stall/toilets.yaml`). The engine paints the doorway as its own
+sprite at two view directions and the building body on top of it, so the
+generator cuts the full-building render into vanilla-style column strips at
+the doorway's screen extent — guests sort into the doorway and the strips
+tile back together exactly. `facility_door_split: false` disables the split.
+The anchoring rules are documented inline in
 `openrct2_ride_generator/sprite_renderer.py`.
 
 ## License

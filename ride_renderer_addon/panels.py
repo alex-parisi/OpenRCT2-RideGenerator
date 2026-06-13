@@ -52,7 +52,7 @@ class VGR_PT_stall(Panel):
         box.prop(ss, "stall_type")
         if is_facility(ss.stall_type):
             box.prop(ss, "facility_door_split")
-            box.label(text="Model the door facing +X.", icon="INFO")
+            box.label(text="Door faces +X; give the doorway object the Door role.", icon="INFO")
         elif is_building(ss.stall_type):
             box.prop(ss, "seats")
             box.label(text="3x3 footprint, centred on the origin tile.", icon="INFO")

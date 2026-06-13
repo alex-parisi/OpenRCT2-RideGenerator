@@ -42,6 +42,12 @@ COLOUR_ITEMS = simple_items(COLOR_NAMES)
 
 OBJECT_ROLE_ITEMS = [
     ("GEOMETRY", "Geometry", "Part of the stall model"),
+    (
+        "DOOR",
+        "Door",
+        "Facility doorway (door + frame, facing +X): cut into the separate "
+        "door sprite so guests sort into it; still part of the building",
+    ),
     ("IGNORE", "Ignore", "Not part of the stall"),
 ]
 
@@ -226,10 +232,11 @@ class VGRStallSettings(PropertyGroup):
         default=True,
     )
     facility_door_split: BoolProperty(
-        name="Split Door Wall",
+        name="Split Doorway",
         description=(
-            "Render the +X door wall as its own sprite so guests sort into the "
-            "doorway (facilities only); off renders the full building everywhere"
+            "Cut the doorway (objects with the Door role) into its own sprite "
+            "so guests sort into it (facilities only); off renders the full "
+            "building everywhere"
         ),
         default=True,
     )

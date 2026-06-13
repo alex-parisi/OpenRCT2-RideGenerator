@@ -1,7 +1,8 @@
 # Toilet block (facility) for the stall example.
 # OBJ space: +X forward, +Y up, +Z right. Origin at the footprint-base centre.
-# The door faces +X: the generator splits the faces near the +X edge into the
-# door-wall sprite so guests sort into the doorway.
+# The door faces +X; the doorway itself lives in toilets_door.obj, whose
+# placement is marked `door: true` so the generator cuts the door sprite at
+# its screen extent and guests sort into the doorway.
 mtllib materials.mtl
 
 # Building shell (y = 0 .. 1.6), half-extent 1.4
@@ -13,11 +14,6 @@ v -1.4 1.6 -1.4
 v  1.4 1.6 -1.4
 v  1.4 1.6  1.4
 v -1.4 1.6  1.4
-# Door slab, slightly proud of the +X wall (y = 0 .. 1.2, z = -0.4 .. 0.4)
-v  1.41 0.0 -0.4
-v  1.41 0.0  0.4
-v  1.41 1.2  0.4
-v  1.41 1.2 -0.4
 
 vn  0.0 -1.0  0.0
 vn  0.0  1.0  0.0
@@ -49,9 +45,3 @@ usemtl RoofSlate
 # Flat roof
 f 5//2 8//2 7//2
 f 5//2 7//2 6//2
-
-usemtl DoorWood
-
-# Door slab on the +X face
-f 9//6 12//6 11//6
-f 9//6 11//6 10//6

@@ -5,7 +5,7 @@ Shops (Shop.cpp) paint `base_image_id + direction` with a {0,0} paint offset,
 so a stall renders like large scenery: 4 cardinal views, each anchored at the
 tile's per-direction reference corner. Facilities (Facility.cpp) paint
 `base_image_id + ((direction + 2) & 3)`, splitting directions 1/2 into a
-door-wall sprite plus a building-body overlay so peeps sort into the doorway.
+doorway sprite plus a building-body overlay so peeps sort into the doorway.
 """
 
 from collections.abc import Callable
@@ -13,14 +13,13 @@ from collections.abc import Callable
 import numpy as np
 from numpy.typing import NDArray
 from openrct2_x7_renderer.constants import TILE_SIZE
-from openrct2_x7_renderer.geometry import face_centroids, split_mesh_by_ghost, subset_mesh
+from openrct2_x7_renderer.geometry import split_mesh_by_ghost
 from openrct2_x7_renderer.mesh import Mesh
 from openrct2_x7_renderer.ray_trace import VIEWS, Context
 from openrct2_x7_renderer.types import IndexedImage
 
 from .constants import (
     BUILDING_VIEW_SPRITES,
-    FACILITY_DOOR_BAND_FRACTION,
     FACILITY_VIEW_SPRITES,
     HAUNTED_HOUSE_OVERLAY_SPRITES,
     PREVIEW_BOX,
@@ -113,44 +112,90 @@ def render_building(
     return images
 
 
-# The door wall must face the camera at view directions 1 and 2 (where
-# Facility.cpp paints it as a separate near-wall slab) and face away at 0 and
-# 3. Under this renderer's dimetric camera that is the tile's +X edge, so a
-# facility is authored with its door facing OBJ +X.
-def split_facility_mesh(combined: Mesh, units_per_tile: float = TILE_SIZE) -> tuple[Mesh, Mesh]:
-    """Split a facility into (door_wall, body) by face centroid: faces within
-    the door band along the +X edge are the door wall."""
-    threshold = units_per_tile / 2.0 - FACILITY_DOOR_BAND_FRACTION * units_per_tile
-    in_band = face_centroids(combined)[:, 0] >= threshold
-    return subset_mesh(combined, in_band), subset_mesh(combined, ~in_band)
+def _trim(img: IndexedImage) -> IndexedImage:
+    """Crop fully transparent borders, keeping the draw anchor."""
+    rows = np.flatnonzero(img.pixels.any(axis=1))
+    cols = np.flatnonzero(img.pixels.any(axis=0))
+    if rows.size == 0:
+        return IndexedImage.blank(1, 1)
+    r0, r1 = int(rows[0]), int(rows[-1]) + 1
+    c0, c1 = int(cols[0]), int(cols[-1]) + 1
+    return IndexedImage(
+        width=c1 - c0,
+        height=r1 - r0,
+        x_offset=img.x_offset + c0,
+        y_offset=img.y_offset + r0,
+        pixels=np.ascontiguousarray(img.pixels[r0:r1, c0:c1]),
+    )
 
 
+def split_door_strip(full: IndexedImage, door: IndexedImage) -> tuple[IndexedImage, IndexedImage]:
+    """Cut a full-building render into (doorway strip, body) at the door-only
+    render's opaque screen-x extent, like the vanilla facility sprites.
+
+    The body overlay's top-slab bound box sorts above the door sprite, so the
+    engine paints the body on top; cutting both sprites from one render along
+    pixel columns makes them tile back together exactly in either paint order.
+    Returns (blank, full) when the door render has no opaque pixels inside the
+    building's columns."""
+    cols = np.flatnonzero(door.pixels.any(axis=0))
+    if cols.size == 0:
+        return IndexedImage.blank(1, 1), full
+    lo = max(door.x_offset + int(cols[0]) - full.x_offset, 0)
+    hi = min(door.x_offset + int(cols[-1]) + 1 - full.x_offset, full.width)
+    if lo >= hi:
+        return IndexedImage.blank(1, 1), full
+    strip = np.zeros_like(full.pixels)
+    strip[:, lo:hi] = full.pixels[:, lo:hi]
+    body = full.pixels.copy()
+    body[:, lo:hi] = 0
+    door_img = IndexedImage(
+        width=full.width, height=full.height,
+        x_offset=full.x_offset, y_offset=full.y_offset, pixels=strip,
+    )
+    body_img = IndexedImage(
+        width=full.width, height=full.height,
+        x_offset=full.x_offset, y_offset=full.y_offset, pixels=body,
+    )
+    return _trim(door_img), _trim(body_img)
+
+
+# The doorway must face the camera at view directions 1 and 2 (where
+# Facility.cpp paints the door sprite and the body overlay) and face away at
+# 0 and 3. Under this renderer's dimetric camera that is the tile's +X edge,
+# so a facility is authored with its door facing OBJ +X.
 def render_facility(
     context: Context,
     combined: Mesh,
+    door: Mesh | None = None,
     units_per_tile: float = TILE_SIZE,
-    door_split: bool = True,
     progress: ProgressFn | None = None,
 ) -> list[IndexedImage]:
     """Render a facility sprite set in Facility.cpp's image order.
 
-    Image k serves view direction (k + 2) & 3: k=0/3 are the door-wall slabs
+    Image k serves view direction (k + 2) & 3: k=0/3 are the doorway strips
     for directions 2/1, k=1/2 the full building for directions 3/0, and k=4/5
-    the building-body overlays for directions 2/1. Without `door_split` the
-    full building fills the directional slots and the overlays are blank."""
-    if door_split:
-        door, body = split_facility_mesh(combined, units_per_tile)
-    else:
-        door, body = combined, Mesh.empty()
-
-    # (mesh, view direction) in image order k = 0..5.
-    plan = [(door, 2), (combined, 3), (combined, 0), (door, 1), (body, 2), (body, 1)]
-    images = []
-    for k, (mesh, d) in enumerate(plan):
-        images.append(_render_direction(context, mesh, d, units_per_tile))
+    the building-body remainders for directions 2/1. `door` is the marked
+    doorway geometry; it is rendered only to locate the strip boundary, the
+    sprite pixels always come from the full-building render (`split_door_strip`).
+    Without `door` the full building fills the directional slots and the
+    overlays are blank."""
+    if door is not None and door.faces.shape[0] == 0:
+        door = None
+    passes = [(combined, 2), (combined, 3), (combined, 0), (combined, 1)]
+    if door is not None:
+        passes += [(door, 2), (door, 1)]
+    rendered = []
+    for k, (mesh, d) in enumerate(passes):
+        rendered.append(_render_direction(context, mesh, d, units_per_tile))
         if progress is not None:
-            progress(k + 1, len(plan))
-    return images
+            progress(k + 1, len(passes))
+    full2, full3, full0, full1 = rendered[:4]
+    if door is None:
+        return [full2, full3, full0, full1, IndexedImage.blank(1, 1), IndexedImage.blank(1, 1)]
+    door2, body2 = split_door_strip(full2, rendered[4])
+    door1, body1 = split_door_strip(full1, rendered[5])
+    return [door2, full3, full0, door1, body2, body1]
 
 
 def center_preview(img: IndexedImage) -> IndexedImage:

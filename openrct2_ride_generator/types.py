@@ -56,6 +56,9 @@ class Stall:
     # Geometry
     meshes: list[Mesh] = field(default_factory=list)
     model: Model = field(default_factory=Model)
+    # The `door: true` subset of `model` (the facility doorway placements);
+    # its rendered screen extent cuts the door sprite out of the full building.
+    door_model: Model = field(default_factory=Model)
 
     preview: IndexedImage | None = None
 

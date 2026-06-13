@@ -169,13 +169,31 @@ def test_export_stall_to_writes_parkobj_with_seven_images(tmp_path):
 
 
 def test_export_stall_to_facility_nine_images(tmp_path):
-    # The triangle mesh sits at the tile centre, so the door slabs render
-    # blank; the image count is still the fixed 3 + 6.
+    # No door-marked placement, so the door split is skipped; the image count
+    # is still the fixed 3 + 6 (door/body slots emitted blank).
     stall = _stall(tmp_path, ride_type="first_aid", sells=None)
-    export_stall_to(stall, FakeContext(), tmp_path / "f.parkobj", tmp_path / "w")
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "f.parkobj", tmp_path / "w")
     with zipfile.ZipFile(tmp_path / "f.parkobj") as zf:
         j = json.loads(zf.read("object.json"))
     assert j["images"] == ["$LGX:images.dat[0..8]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 4
+
+
+def test_export_stall_to_facility_with_door_renders_door_passes(tmp_path):
+    stall = _stall(
+        tmp_path,
+        ride_type="first_aid",
+        sells=None,
+        model=[{"mesh_index": 0}, {"mesh_index": 0, "door": True}],
+    )
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "f.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "f.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    assert j["images"] == ["$LGX:images.dat[0..8]"]
+    # 4 full-building views + 2 door-locator renders.
+    assert sum(1 for e in ctx.events if e == "begin") == 6
 
 
 def test_export_stall_to_building_seven_images(tmp_path):
@@ -270,14 +288,18 @@ def test_export_stall_test_writes_pngs(tmp_path):
 
 
 def test_export_stall_test_facility_reports_door_split(tmp_path):
-    stall = _stall(tmp_path, ride_type="toilets", sells=None)
+    stall = _stall(
+        tmp_path,
+        ride_type="toilets",
+        sells=None,
+        model=[{"mesh_index": 0}, {"mesh_index": 0, "door": True}],
+    )
     test_dir = tmp_path / "test"
     export_stall_test(stall, FakeContext(), test_dir)
     for i in range(6):
         assert (test_dir / f"stall_{i}.png").exists()
     note = (test_dir / "door_split.txt").read_text()
-    assert "door 0 faces" in note
-    assert "body 1 faces" in note
+    assert "door 1 faces" in note
 
 
 def test_export_stall_test_facility_split_disabled_no_note(tmp_path):
