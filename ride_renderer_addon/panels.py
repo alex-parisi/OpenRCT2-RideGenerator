@@ -38,6 +38,7 @@ class VGR_PT_stall(Panel):
         layout.prop(ss, "scale_preset")
         if ss.scale_preset == "CUSTOM":
             layout.prop(ss, "units_per_tile")
+        layout.prop(ss, "dither")
 
         box = layout.box()
         box.label(text="Identity", icon="INFO")
