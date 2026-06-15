@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 
 import bpy
+from openrct2_object_common.blender.bake import bake_materials
 from openrct2_object_common.blender.mesh_extract import (
     SceneError,
     extract_mesh,
@@ -29,15 +30,24 @@ _REGION_MAP = {
 }
 
 
+# Material -> baked Texture map for the current build, populated by
+# build_stall_from_scene before extraction (see bake.bake_materials).
+_baked_textures: dict = {}
+
+
 def _material_from_bpy(bmat) -> Material:
     m, s = material_base(bmat, prop_attr="vgr_material", region_map=_REGION_MAP)
     if s is None:
         return m
+    # Texture sources, in priority order: explicit image > baked procedural nodes.
     if s.texture is not None:
         path = bpy.path.abspath(s.texture.filepath_from_user() or s.texture.filepath)
         if path and os.path.exists(path):
             m.texture = load_texture(path)
             m.flags |= MaterialFlag.HAS_TEXTURE
+    if not (m.flags & MaterialFlag.HAS_TEXTURE) and bmat in _baked_textures:
+        m.texture = _baked_textures[bmat]
+        m.flags |= MaterialFlag.HAS_TEXTURE
     return m
 
 
@@ -70,6 +80,13 @@ def build_stall_from_scene(context) -> Stall:
     ss = scene.vgr_stall
     depsgraph = context.evaluated_depsgraph_get()
     kind = STALL_TYPES[ss.stall_type]
+
+    # Bake any procedural-node materials to textures up front (main thread, Cycles),
+    # then feed them into extraction via _material_from_bpy. Re-assigned each call.
+    global _baked_textures
+    _baked_textures = bake_materials(
+        context, _geometry_objects(scene.objects), prop_attr="vgr_material"
+    )
 
     meshes: list[Mesh] = []
     model: list[dict] = []

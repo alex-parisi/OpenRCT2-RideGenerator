@@ -4,6 +4,7 @@ per-object role + per-material region."""
 
 import bpy
 from bpy.types import Panel, UIList
+from openrct2_object_common.blender.bake import draw_bake
 
 from .props import is_building, is_facility
 
@@ -126,6 +127,7 @@ def _draw_material_settings(layout, ms):
     col.prop(ms, "dark_edge")
     col.prop(ms, "no_bleed")
     layout.prop(ms, "texture")
+    draw_bake(layout.column(align=True), ms)
 
     col = layout.column(align=True)
     col.label(text="Shading")
