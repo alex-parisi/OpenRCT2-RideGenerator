@@ -5,6 +5,7 @@ Shared rendering constants live in openrct2_x7_renderer.constants.
 
 from enum import Enum, auto
 
+from openrct2_object_common.colours import COLOR_NAMES as COLOR_NAMES  # noqa: F401
 from openrct2_x7_renderer.constants import TILE_SIZE as TILE_SIZE  # noqa: F401
 
 
@@ -97,42 +98,6 @@ SHOP_ITEMS = frozenset(
 
 # kMaxShopItemsPerRideEntry: the engine reads at most two `sells` entries.
 MAX_SELLS = 2
-
-# OpenRCT2's 32 remap colour names, by palette index.
-COLOR_NAMES = [
-    "black",
-    "grey",
-    "white",
-    "dark_purple",
-    "light_purple",
-    "bright_purple",
-    "dark_blue",
-    "light_blue",
-    "icy_blue",
-    "teal",
-    "aquamarine",
-    "saturated_green",
-    "dark_green",
-    "moss_green",
-    "bright_green",
-    "olive_green",
-    "dark_olive_green",
-    "bright_yellow",
-    "yellow",
-    "dark_yellow",
-    "light_orange",
-    "dark_orange",
-    "light_brown",
-    "saturated_brown",
-    "dark_brown",
-    "salmon_pink",
-    "bordeaux_red",
-    "saturated_red",
-    "bright_red",
-    "dark_pink",
-    "bright_pink",
-    "light_pink",
-]
 
 # A ride object's car images start at images_offset + kMaxRideTypesPerRideEntry,
 # so three preview slots precede the view sprites.

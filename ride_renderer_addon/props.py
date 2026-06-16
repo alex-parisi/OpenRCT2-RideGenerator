@@ -2,29 +2,23 @@
 Blender PropertyGroups for the ride (stall) add-on.
 """
 
-import bpy
 from bpy.props import (
     BoolProperty,
     CollectionProperty,
     EnumProperty,
-    FloatProperty,
-    FloatVectorProperty,
     IntProperty,
-    PointerProperty,
     StringProperty,
 )
 from bpy.types import Material, Object, PropertyGroup, Scene
-from openrct2_object_common.blender.bake import BAKE_RESOLUTION_ITEMS
 from openrct2_object_common.blender.props import (
-    DEFAULT_DITHER_MODE,
-    DITHER_MODE_ITEMS,
-    SCALE_PRESET_ITEMS,
-    SharedLight,
-    scale_preset_update,
+    MATERIAL_REGION_ITEMS,
+    SharedMaterialSettings,
+    SharedRenderSettings,
+    register_settings,
     simple_items,
+    unregister_settings,
 )
 from openrct2_ride_generator.constants import COLOR_NAMES, SHOP_ITEMS, STALL_TYPES, StallKind
-from openrct2_x7_renderer.constants import TILE_SIZE
 
 STALL_TYPE_ITEMS = [
     ("food_stall", "Food Stall", "Sells food items (4 view sprites)"),
@@ -54,16 +48,6 @@ OBJECT_ROLE_ITEMS = [
     ("IGNORE", "Ignore", "Not part of the stall"),
 ]
 
-MATERIAL_REGION_ITEMS = [
-    ("NONE", "None", "Plain shaded colour"),
-    ("REMAP1", "Remap 1 (primary colour)", "Recoloured by the ride's main colour"),
-    ("REMAP2", "Remap 2 (secondary)", "Recoloured by the first additional colour"),
-    ("REMAP3", "Remap 3 (tertiary)", "Recoloured by the second additional colour"),
-    ("GREYSCALE", "Greyscale", "Greyscale shading region"),
-    ("PEEP", "Peep", "Peep region"),
-]
-
-
 def is_facility(stall_type: str) -> bool:
     return STALL_TYPES[stall_type] is StallKind.FACILITY
 
@@ -72,85 +56,14 @@ def is_building(stall_type: str) -> bool:
     return STALL_TYPES[stall_type] is StallKind.BUILDING
 
 
-def _scale_preset_update(self, _context):
-    scale_preset_update(self, _context)
-
-
-class VGRMaterialSettings(PropertyGroup):
+class VGRMaterialSettings(SharedMaterialSettings):
+    # Shared renderer/baking/Phong fields come from SharedMaterialSettings; only
+    # the region enum (its regions + default) is stall-specific.
     region: EnumProperty(
         name="Region",
         description="How OpenRCT2 treats this material's pixels",
         items=MATERIAL_REGION_ITEMS,
         default="NONE",
-    )
-    is_mask: BoolProperty(name="Mask", default=False)
-    no_ao: BoolProperty(name="No Ambient Occlusion", default=False)
-    edge: BoolProperty(name="Edge AA", default=False)
-    dark_edge: BoolProperty(name="Dark Edge AA", default=False)
-    no_bleed: BoolProperty(name="No Bleed", default=False)
-    texture: PointerProperty(
-        name="Texture",
-        description="Optional image; must be saved to disk (its file is read at export)",
-        type=bpy.types.Image,
-    )
-    bake_procedural: BoolProperty(
-        name="Bake Procedural Nodes",
-        description=(
-            "Bake this material's procedural shader-node graph to a texture at export "
-            "(albedo only). Requires a UV unwrap. Overrides the flat color"
-        ),
-        default=False,
-    )
-    bake_resolution: EnumProperty(
-        name="Bake Resolution",
-        description="Pixel size of the baked texture",
-        items=BAKE_RESOLUTION_ITEMS,
-        default="256",
-    )
-    # Phong shading controls
-    use_color_override: BoolProperty(
-        name="Override Color",
-        description="Use the color below instead of the shader's Base Color",
-        default=False,
-    )
-    diffuse_color: FloatVectorProperty(
-        name="Color",
-        description="Flat diffuse color (used when Override Color is on)",
-        subtype="COLOR",
-        size=3,
-        min=0.0,
-        max=1.0,
-        default=(0.8, 0.8, 0.8),
-    )
-    specular_intensity: FloatProperty(
-        name="Specular Intensity",
-        description="Brightness of the specular highlight (scales the specular color)",
-        default=0.5,
-        min=0.0,
-        soft_max=1.0,
-    )
-    specular_exponent: FloatProperty(
-        name="Specular Exponent",
-        description=(
-            "Phong specular exponent: tightness of the highlight (higher = smaller, sharper)"
-        ),
-        default=50.0,
-        min=1.0,
-        soft_max=256.0,
-    )
-    use_specular_tint: BoolProperty(
-        name="Tint Highlight",
-        description="Tint the specular highlight with the color below (off = white)",
-        default=False,
-    )
-    specular_tint: FloatVectorProperty(
-        name="Specular Tint",
-        description="Specular highlight color (used when Tint Highlight is on)",
-        subtype="COLOR",
-        size=3,
-        min=0.0,
-        max=1.0,
-        default=(1.0, 1.0, 1.0),
     )
 
 
@@ -180,45 +93,10 @@ class VGRColourPreset(PropertyGroup):
     additional_2: EnumProperty(name="Additional 2", items=COLOUR_ITEMS, default="black")
 
 
-VGRLight = SharedLight
-
-
-class VGRStallSettings(PropertyGroup):
-    scale_preset: EnumProperty(
-        name="Scale",
-        description="How many OBJ units map to one OpenRCT2 tile",
-        items=SCALE_PRESET_ITEMS,
-        default="REALISTIC",
-        update=_scale_preset_update,
-    )
-    units_per_tile: FloatProperty(
-        name="Units / Tile",
-        description="OBJ units per OpenRCT2 tile; drives sprite size and tile anchoring",
-        default=TILE_SIZE,
-        min=0.01,
-        soft_max=16.0,
-    )
-    dither: EnumProperty(
-        name="Dither",
-        description=(
-            "Palette dithering mode. Bayer and Blue noise stay stable across "
-            "animation frames; Floyd-Steinberg has higher fidelity but its pattern "
-            "shifts per frame"
-        ),
-        items=DITHER_MODE_ITEMS,
-        default=DEFAULT_DITHER_MODE,
-    )
-    dither_stability: FloatProperty(
-        name="Dither Stability",
-        description=(
-            "Temporal-stability deadband in palette units. Shading changes smaller "
-            "than this quantise identically between frames, reducing dither "
-            "'swimming' in animations; 0 disables it"
-        ),
-        default=0.0,
-        min=0.0,
-        soft_max=16.0,
-    )
+class VGRStallSettings(SharedRenderSettings):
+    # scale_preset / units_per_tile / dither / dither_stability / authors /
+    # version / lights come from SharedRenderSettings; only the per-object
+    # identity and the stall-specific fields live here.
     id: StringProperty(
         name="Object ID",
         description="Unique id, e.g. openrct2rg.ride.my_stall (avoid vanilla ids)",
@@ -228,8 +106,6 @@ class VGRStallSettings(PropertyGroup):
     description: StringProperty(
         name="Description", default="A stall", description="Shown in the ride window"
     )
-    authors: StringProperty(name="Authors", description="Comma-separated", default="")
-    version: StringProperty(name="Version", default="1.0")
 
     stall_type: EnumProperty(
         name="Ride Type",
@@ -281,21 +157,11 @@ class VGRStallSettings(PropertyGroup):
     colour_presets: CollectionProperty(type=VGRColourPreset)
     preset_index: IntProperty(default=0)
 
-    # Custom lighting
-    lights: CollectionProperty(type=VGRLight)
-    light_index: IntProperty(default=0)
-    show_lights: BoolProperty(
-        name="Custom Lighting",
-        description="Override the default lighting rig with a custom one",
-        default=False,
-    )
 
-
-# VGRLight (= SharedLight) is registered cooperatively, NOT in _CLASSES: Blender shares
-# the bundled openrct2_objectcommon wheel across the OpenRCT2 add-ons, so SharedLight is
-# one class object — whichever add-on loads first registers it, the rest must skip it
-# (else "already registered as a subclass 'SharedLight'"). Mirrors the shared parent
-# panel guard in panels.py.
+# SharedLight (the lights rig's item type, carried by SharedRenderSettings) is
+# registered cooperatively (see register_shared_light), NOT in _CLASSES: the
+# bundled wheel is shared across the OpenRCT2 add-ons, so only the first one to
+# load may register the single SharedLight class object.
 _CLASSES = (
     VGRMaterialSettings,
     VGRObjectSettings,
@@ -303,44 +169,16 @@ _CLASSES = (
     VGRStallSettings,
 )
 
-_shared_light_owned = False
-
-
-def _register_shared_light():
-    """Register SharedLight unless another OpenRCT2 add-on already did.
-
-    Blender shares the bundled wheel, so ``VGRLight`` is the very class object the
-    other add-ons register; ``is_registered`` is the reliable cross-add-on check
-    (the class is not exposed as ``bpy.types.SharedLight``).
-    """
-    global _shared_light_owned
-    if not VGRLight.is_registered:
-        bpy.utils.register_class(VGRLight)
-        _shared_light_owned = True
-
-
-def _unregister_shared_light():
-    """Drop SharedLight only if this add-on was the one that registered it."""
-    global _shared_light_owned
-    if _shared_light_owned:
-        bpy.utils.unregister_class(VGRLight)
-        _shared_light_owned = False
+_POINTERS = (
+    (Scene, "vgr_stall", VGRStallSettings),
+    (Object, "vgr_object", VGRObjectSettings),
+    (Material, "vgr_material", VGRMaterialSettings),
+)
 
 
 def register():
-    # SharedLight must exist before VGRStallSettings' CollectionProperty(type=VGRLight).
-    _register_shared_light()
-    for cls in _CLASSES:
-        bpy.utils.register_class(cls)
-    Scene.vgr_stall = PointerProperty(type=VGRStallSettings)
-    Object.vgr_object = PointerProperty(type=VGRObjectSettings)
-    Material.vgr_material = PointerProperty(type=VGRMaterialSettings)
+    register_settings(_CLASSES, _POINTERS)
 
 
 def unregister():
-    del Material.vgr_material
-    del Object.vgr_object
-    del Scene.vgr_stall
-    for cls in reversed(_CLASSES):
-        bpy.utils.unregister_class(cls)
-    _unregister_shared_light()
+    unregister_settings(_CLASSES, _POINTERS)

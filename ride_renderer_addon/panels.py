@@ -2,9 +2,19 @@
 UI panels for the ride (stall) add-on: scene settings (3D View N-panel) +
 per-object role + per-material region."""
 
-import bpy
 from bpy.types import Panel, UIList
-from openrct2_object_common.blender.bake import draw_bake
+from openrct2_object_common.blender.lights_ui import draw_lights_rig, make_lights_uilist
+from openrct2_object_common.blender.object_panel import (
+    draw_dither_box,
+    draw_identity_box,
+    draw_materials_box,
+    draw_render_buttons,
+    draw_scale,
+    make_object_view3d_panel,
+    register_shared_parent,
+    unregister_shared_parent,
+)
+from openrct2_object_common.blender.registration import register_classes, unregister_classes
 
 from .props import is_building, is_facility
 
@@ -18,12 +28,7 @@ class VGR_UL_presets(UIList):
         row.prop(item, "additional_2", text="")
 
 
-class VGR_UL_lights(UIList):
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
-        row = layout.row(align=True)
-        row.label(text="", icon="LIGHT")
-        row.prop(item, "type", text="")
-        row.prop(item, "strength", text="")
+VGR_UL_lights = make_lights_uilist("VGR_UL_lights")
 
 
 class VGR_PT_stall(Panel):
@@ -36,21 +41,9 @@ class VGR_PT_stall(Panel):
         layout = self.layout
         ss = context.scene.vgr_stall
 
-        layout.prop(ss, "scale_preset")
-        if ss.scale_preset == "CUSTOM":
-            layout.prop(ss, "units_per_tile")
-        box = layout.box()
-        box.label(text="Identity", icon="INFO")
-        box.prop(ss, "id")
-        box.prop(ss, "name")
-        box.prop(ss, "description")
-        box.prop(ss, "authors")
-        box.prop(ss, "version")
-
-        box = layout.box()
-        box.label(text="Dither", icon="MOD_NOISE")
-        box.prop(ss, "dither")
-        box.prop(ss, "dither_stability")
+        draw_scale(layout, ss)
+        draw_identity_box(layout, ss, ("id", "name", "description", "authors", "version"))
+        draw_dither_box(layout, ss)
 
         box = layout.box()
         box.label(text="Stall", icon="HOME")
@@ -82,67 +75,9 @@ class VGR_PT_stall(Panel):
             if not ss.colour_presets:
                 cbox.label(text="No presets - black is used.", icon="INFO")
 
-        _draw_lights(layout, ss)
+        draw_lights_rig(layout, ss, prefix="vgr", uilist_name="VGR_UL_lights")
 
-        col = layout.column(align=True)
-        col.scale_y = 1.3
-        col.operator("vgr.test_render", icon="RENDER_STILL")
-        col.operator("vgr.export_parkobj", icon="EXPORT")
-
-
-def _draw_lights(layout, ss):
-    box = layout.box()
-    row = box.row()
-    row.prop(
-        ss,
-        "show_lights",
-        icon="TRIA_DOWN" if ss.show_lights else "TRIA_RIGHT",
-        emboss=False,
-    )
-    row.label(text="", icon="LIGHT_SUN")
-    if ss.show_lights:
-        row = box.row()
-        row.template_list("VGR_UL_lights", "", ss, "lights", ss, "light_index", rows=3)
-        col = row.column(align=True)
-        col.operator("vgr.light_add", icon="ADD", text="")
-        col.operator("vgr.light_remove", icon="REMOVE", text="")
-        if ss.lights:
-            light = ss.lights[ss.light_index]
-            sub = box.column()
-            sub.prop(light, "type")
-            sub.prop(light, "shadow")
-            sub.prop(light, "direction")
-            sub.prop(light, "strength")
-        else:
-            box.label(text="No lights - using the default rig.", icon="INFO")
-
-
-def _draw_material_settings(layout, ms):
-    """Draw a material's OpenRCT2 region/flags/shading settings."""
-    layout.prop(ms, "region")
-    col = layout.column(align=True)
-    col.prop(ms, "is_mask")
-    col.prop(ms, "no_ao")
-    col.prop(ms, "edge")
-    col.prop(ms, "dark_edge")
-    col.prop(ms, "no_bleed")
-    layout.prop(ms, "texture")
-    draw_bake(layout.column(align=True), ms)
-
-    col = layout.column(align=True)
-    col.label(text="Shading")
-    row = col.row(align=True)
-    row.prop(ms, "use_color_override", text="")
-    sub = row.row()
-    sub.enabled = ms.use_color_override
-    sub.prop(ms, "diffuse_color", text="Color")
-    col.prop(ms, "specular_exponent")
-    col.prop(ms, "specular_intensity")
-    row = col.row(align=True)
-    row.prop(ms, "use_specular_tint", text="")
-    sub = row.row()
-    sub.enabled = ms.use_specular_tint
-    sub.prop(ms, "specular_tint", text="Specular Tint")
+        draw_render_buttons(layout, "vgr.test_render", "vgr.export_parkobj")
 
 
 def _draw_object_settings(layout, obj):
@@ -154,83 +89,16 @@ def _draw_object_settings(layout, obj):
 
     layout.prop(obj.vgr_object, "is_ghost")
 
-    box = layout.box()
-    box.label(text="Materials", icon="MATERIAL")
-    if not obj.material_slots:
-        box.label(text="No materials on this object.", icon="INFO")
-        return
-    if len(obj.material_slots) > 1:
-        box.template_list(
-            "MATERIAL_UL_matslots",
-            "",
-            obj,
-            "material_slots",
-            obj,
-            "active_material_index",
-            rows=2,
-        )
-    mat = obj.active_material
-    if mat is None:
-        box.label(text="Empty material slot.", icon="INFO")
-    else:
-        _draw_material_settings(box, mat.vgr_material)
+    draw_materials_box(layout, obj, "vgr_material")
 
 
-# Shared "Selected Object" container (shared across the OpenRCT2 add-ons)
-_SHARED_PARENT_IDNAME = "OPENRCT2_PT_selected_object"
-
-
-class OPENRCT2_PT_selected_object(Panel):
-    bl_idname = _SHARED_PARENT_IDNAME
-    bl_label = "Selected Object"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "OpenRCT2"
-    bl_order = 1
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj is not None and obj.type == "MESH"
-
-    def draw(self, context):
-        pass
-
-
-def _register_shared_parent():
-    """Register the shared parent unless another add-on already did."""
-    if not hasattr(bpy.types, _SHARED_PARENT_IDNAME):
-        bpy.utils.register_class(OPENRCT2_PT_selected_object)
-
-
-def _unregister_shared_parent():
-    """Drop the shared parent only once no add-on's child still nests under it."""
-    cls = getattr(bpy.types, _SHARED_PARENT_IDNAME, None)
-    if cls is None:
-        return
-    for name in dir(bpy.types):
-        if getattr(getattr(bpy.types, name, None), "bl_parent_id", "") == _SHARED_PARENT_IDNAME:
-            return
-    bpy.utils.unregister_class(cls)
-
-
-class VGR_PT_object_view3d(Panel):
-    """The active object's stall settings, as a child of "Selected Object"."""
-
-    bl_label = "Ride"
-    bl_space_type = "VIEW_3D"
-    bl_region_type = "UI"
-    bl_category = "OpenRCT2"
-    bl_parent_id = _SHARED_PARENT_IDNAME
-    bl_order = 2
-
-    @classmethod
-    def poll(cls, context):
-        obj = context.object
-        return obj is not None and obj.type == "MESH" and hasattr(obj, "vgr_object")
-
-    def draw(self, context):
-        _draw_object_settings(self.layout, context.object)
+VGR_PT_object_view3d = make_object_view3d_panel(
+    name="VGR_PT_object_view3d",
+    label="Ride",
+    order=2,
+    prop_attr="vgr_object",
+    draw=lambda layout, context: _draw_object_settings(layout, context.object),
+)
 
 
 _CLASSES = (
@@ -242,12 +110,10 @@ _CLASSES = (
 
 
 def register():
-    _register_shared_parent()
-    for cls in _CLASSES:
-        bpy.utils.register_class(cls)
+    register_shared_parent()
+    register_classes(_CLASSES)
 
 
 def unregister():
-    for cls in reversed(_CLASSES):
-        bpy.utils.unregister_class(cls)
-    _unregister_shared_parent()
+    unregister_classes(_CLASSES)
+    unregister_shared_parent()

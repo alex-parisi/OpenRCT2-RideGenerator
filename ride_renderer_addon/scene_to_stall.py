@@ -4,70 +4,22 @@ Read the Blender scene into the ride generator's config + meshes.
 
 from __future__ import annotations
 
-import os
-
-import bpy
-from openrct2_object_common.blender.bake import bake_materials
 from openrct2_object_common.blender.mesh_extract import (
+    MaterialExtractor,
     SceneError,
-    extract_mesh,
-    material_base,
+    geometry_objects,
     object_position,
+    parse_authors,
 )
 from openrct2_ride_generator.constants import STALL_TYPES, StallKind
 from openrct2_ride_generator.loader import build_stall
 from openrct2_ride_generator.types import Stall
-from openrct2_x7_renderer.constants import MaterialFlag
-from openrct2_x7_renderer.mesh import Material, Mesh, load_texture
+from openrct2_x7_renderer.mesh import Mesh
 
-_REGION_MAP = {
-    "NONE": (0, 0),
-    "REMAP1": (MaterialFlag.IS_REMAPPABLE, 1),
-    "REMAP2": (MaterialFlag.IS_REMAPPABLE, 2),
-    "REMAP3": (MaterialFlag.IS_REMAPPABLE, 3),
-    "GREYSCALE": (0, 4),
-    "PEEP": (0, 5),
-}
-
-
-# Material -> baked Texture map for the current build, populated by
-# build_stall_from_scene before extraction (see bake.bake_materials).
-_baked_textures: dict = {}
-
-
-def _material_from_bpy(bmat) -> Material:
-    m, s = material_base(bmat, prop_attr="vgr_material", region_map=_REGION_MAP)
-    if s is None:
-        return m
-    # Texture sources, in priority order: explicit image > baked procedural nodes.
-    if s.texture is not None:
-        path = bpy.path.abspath(s.texture.filepath_from_user() or s.texture.filepath)
-        if path and os.path.exists(path):
-            m.texture = load_texture(path)
-            m.flags |= MaterialFlag.HAS_TEXTURE
-    if not (m.flags & MaterialFlag.HAS_TEXTURE) and bmat in _baked_textures:
-        m.texture = _baked_textures[bmat]
-        m.flags |= MaterialFlag.HAS_TEXTURE
-    return m
-
-
-def _extract(obj, depsgraph) -> Mesh | None:
-    mesh = extract_mesh(obj, depsgraph, _material_from_bpy)
-    # A per-object "Ghost" toggle marks the whole mesh's geometry as ghost so
-    # the renderer traces through it.
-    if mesh is not None and obj.vgr_object.is_ghost:
-        for material in mesh.materials:
-            material.is_ghost = True
-    return mesh
-
-
-def _geometry_objects(objects) -> list:
-    """Mesh objects that are part of the model (role != IGNORE)."""
-    return [
-        obj
-        for obj in objects
-        if obj.type == "MESH" and obj.vgr_object.role != "IGNORE"
-    ]
+# Owns this build's baked-texture map + the scene extractor (material_base +
+# apply_settings_texture); refreshed by build_stall_from_scene before extraction.
+_extractor = MaterialExtractor("vgr_material", ghost_attr="vgr_object")
+_extract = _extractor.extract
 
 
 def _sells(ss) -> list[str]:
@@ -82,15 +34,12 @@ def build_stall_from_scene(context) -> Stall:
     kind = STALL_TYPES[ss.stall_type]
 
     # Bake any procedural-node materials to textures up front (main thread, Cycles),
-    # then feed them into extraction via _material_from_bpy. Re-assigned each call.
-    global _baked_textures
-    _baked_textures = bake_materials(
-        context, _geometry_objects(scene.objects), prop_attr="vgr_material"
-    )
+    # then feed them into extraction via the extractor. Refreshed each call.
+    _extractor.bake(context, geometry_objects(scene.objects, "vgr_object"))
 
     meshes: list[Mesh] = []
     model: list[dict] = []
-    for obj in _geometry_objects(scene.objects):
+    for obj in geometry_objects(scene.objects, "vgr_object"):
         mesh = _extract(obj, depsgraph)
         if mesh is None:
             continue
@@ -113,7 +62,7 @@ def build_stall_from_scene(context) -> Stall:
             "in the OpenRCT2 Ride panel."
         )
 
-    authors = [a.strip() for a in ss.authors.split(",") if a.strip()]
+    authors = parse_authors(ss.authors)
 
     config: dict = {
         "object_type": "ride",

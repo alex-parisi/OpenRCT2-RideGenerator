@@ -8,14 +8,16 @@ tile's per-direction reference corner. Facilities (Facility.cpp) paint
 doorway sprite plus a building-body overlay so peeps sort into the doorway.
 """
 
-from collections.abc import Callable
-
 import numpy as np
-from numpy.typing import NDArray
+from openrct2_object_common.export import ProgressFn
+from openrct2_object_common.sprite_render import (
+    center_in_box,
+    render_corner_anchored_view,
+    trim,
+)
 from openrct2_x7_renderer.constants import TILE_SIZE
-from openrct2_x7_renderer.geometry import split_mesh_by_ghost
 from openrct2_x7_renderer.mesh import Mesh
-from openrct2_x7_renderer.ray_trace import VIEWS, Context
+from openrct2_x7_renderer.ray_trace import Context
 from openrct2_x7_renderer.types import IndexedImage
 
 from .constants import (
@@ -27,10 +29,6 @@ from .constants import (
     STALL_TYPES,
     StallKind,
 )
-
-ProgressFn = Callable[[int, int], None]
-
-_IDENTITY3 = np.eye(3, dtype=np.float64)
 
 
 def count_stall_sprites(stall_type: str) -> int:
@@ -44,35 +42,15 @@ def count_stall_sprites(stall_type: str) -> int:
     return SHOP_VIEW_SPRITES
 
 
-def _render_scene_view(
-    context: Context, mesh: Mesh, translation: NDArray[np.float64], view: NDArray[np.float64]
-) -> IndexedImage:
-    """Render a single model under a single view in its own scene, splitting
-    ghost faces into their own GHOST model so the renderer traces through
-    them."""
-    with context.begin_render() as scene:
-        for sub_mesh, mask in split_mesh_by_ghost(mesh):
-            scene.add_model(sub_mesh, _IDENTITY3, translation, mask)
-        with scene.finalize() as ready:
-            return ready.render_view(view)
-
-
-# OpenRCT2 anchors a stall sprite at the tile's reference corner (paint offset
-# {0,0}), the same per-direction corner pattern as large scenery.
-def _corners_by_dir(units_per_tile: float) -> list[tuple[float, float]]:
-    h = units_per_tile / 2.0
-    return [(h, h), (-h, h), (-h, -h), (h, -h)]
-
-
 def _render_direction(
     context: Context, mesh: Mesh, direction: int, units_per_tile: float
 ) -> IndexedImage:
-    """Render `mesh` for one view direction, corner-anchored."""
-    if mesh.faces.shape[0] == 0:
-        return IndexedImage.blank(1, 1)
-    ox, oz = _corners_by_dir(units_per_tile)[direction]
-    translation = np.array([-ox, 0.0, -oz], dtype=np.float64)
-    return _render_scene_view(context, mesh, translation, VIEWS[direction])
+    """Render `mesh` for one view direction, corner-anchored. A stall anchors at
+    the tile's reference corner like large scenery, so this is the shared
+    corner-anchor primitive (see openrct2_object_common)."""
+    return render_corner_anchored_view(
+        context, mesh, direction, units_per_tile=units_per_tile
+    )
 
 
 def render_shop(
@@ -112,21 +90,9 @@ def render_building(
     return images
 
 
-def _trim(img: IndexedImage) -> IndexedImage:
-    """Crop fully transparent borders, keeping the draw anchor."""
-    rows = np.flatnonzero(img.pixels.any(axis=1))
-    cols = np.flatnonzero(img.pixels.any(axis=0))
-    if rows.size == 0:
-        return IndexedImage.blank(1, 1)
-    r0, r1 = int(rows[0]), int(rows[-1]) + 1
-    c0, c1 = int(cols[0]), int(cols[-1]) + 1
-    return IndexedImage(
-        width=c1 - c0,
-        height=r1 - r0,
-        x_offset=img.x_offset + c0,
-        y_offset=img.y_offset + r0,
-        pixels=np.ascontiguousarray(img.pixels[r0:r1, c0:c1]),
-    )
+# Cropping transparent borders (preserving the draw anchor) is shared with
+# every other object kind (see openrct2_object_common).
+_trim = trim
 
 
 def split_door_strip(full: IndexedImage, door: IndexedImage) -> tuple[IndexedImage, IndexedImage]:
@@ -202,10 +168,4 @@ def center_preview(img: IndexedImage) -> IndexedImage:
     """Re-anchor a view sprite so its content centres in the ride window's
     112x112 preview box (vanilla previews are hand-drawn 112x112 images
     anchored at (0,0))."""
-    return IndexedImage(
-        width=img.width,
-        height=img.height,
-        x_offset=(PREVIEW_BOX - img.width) // 2,
-        y_offset=(PREVIEW_BOX - img.height) // 2,
-        pixels=img.pixels,
-    )
+    return center_in_box(img, PREVIEW_BOX, PREVIEW_BOX)

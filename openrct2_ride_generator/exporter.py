@@ -5,12 +5,10 @@ Build object.json and assemble the stall .parkobj ZIP.
 from pathlib import Path
 from typing import Any
 
-from openrct2_object_common.objectjson import object_json_header
-from openrct2_object_common.parkobj import (
-    assemble_parkobj,
-    combine_indexed_images,
-    write_images_dat_lgx,
-)
+from openrct2_object_common.export import ProgressFn, export_object, export_to_directory
+from openrct2_object_common.objectjson import object_json_header_for, object_strings
+from openrct2_object_common.parkobj import write_images_dat_lgx
+from openrct2_object_common.preview import open_test_dir, write_combined_preview
 from openrct2_x7_renderer.geometry import combine_model_world
 from openrct2_x7_renderer.image import write_png
 from openrct2_x7_renderer.ray_trace import Context
@@ -24,7 +22,6 @@ from .constants import (
     StallKind,
 )
 from .sprite_renderer import (
-    ProgressFn,
     center_preview,
     render_building,
     render_facility,
@@ -50,13 +47,7 @@ def _build_car_entry(stall: Stall) -> dict[str, Any]:
 
 
 def build_stall_json(stall: Stall) -> dict[str, Any]:
-    out = object_json_header(
-        stall.id,
-        object_type="ride",
-        original_id=stall.original_id,
-        version=stall.version,
-        authors=stall.authors,
-    )
+    out = object_json_header_for(stall, "ride")
     building = stall.kind is StallKind.BUILDING
 
     properties: dict[str, Any] = {
@@ -82,12 +73,11 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
         properties["buildMenuPriority"] = stall.build_menu_priority
     out["properties"] = properties
 
-    out["strings"] = {
-        "name": {"en-GB": stall.name},
-        "description": {"en-GB": stall.description},
-    }
-    if building:
-        out["strings"]["capacity"] = {"en-GB": f"{stall.num_seats} guests"}
+    out["strings"] = object_strings(
+        stall.name,
+        description=stall.description,
+        capacity=f"{stall.num_seats} guests" if building else None,
+    )
     return out
 
 
@@ -142,31 +132,23 @@ def export_stall_to(
 ) -> None:
     """Render the sprites (or reuse a previous render) and zip object.json +
     images.dat into the parkobj."""
-    assemble_parkobj(
-        build_stall_json(stall),
-        Path(parkobj_path),
-        Path(work_dir),
-        lambda wd: _render_sprites(stall, context, wd, progress),
-        skip_render=skip_render,
+    export_object(
+        stall, context, build_stall_json(stall), _render_sprites, parkobj_path, work_dir,
+        skip_render=skip_render, progress=progress,
     )
 
 
 def export_stall(
     stall: Stall, context: Context, output_directory: Path | str, skip_render: bool = False
 ) -> None:
-    export_stall_to(
-        stall,
-        context,
-        Path(output_directory) / f"{stall.id}.parkobj",
-        Path("object"),
-        skip_render=skip_render,
+    export_to_directory(
+        export_stall_to, stall, context, output_directory, stall.id, skip_render=skip_render
     )
 
 
 def export_stall_test(stall: Stall, context: Context, test_dir: Path | str = "test") -> None:
     """Per-view renders for fast iteration (plus the facility door/body split)."""
-    test_dir = Path(test_dir)
-    test_dir.mkdir(parents=True, exist_ok=True)
+    test_dir = open_test_dir(test_dir)
     # Drop the trailing blank animation overlays (haunted house ghosts).
     views = _render_views(stall, context)[: stall.num_view_sprites]
     for i, img in enumerate(views):
@@ -176,4 +158,4 @@ def export_stall_test(stall: Stall, context: Context, test_dir: Path | str = "te
         note = f"door {door.faces.shape[0]} faces (strip cut at the door mesh's screen extent)"
         (test_dir / "door_split.txt").write_text(note + "\n")
     write_png(_preview_image(stall, views), test_dir / "preview.png")
-    write_png(combine_indexed_images(views), test_dir / "preview_combined.png")
+    write_combined_preview(views, test_dir)

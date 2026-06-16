@@ -9,18 +9,18 @@ from typing import Any
 from openrct2_object_common.config import (
     LoadError,
     as_array_or_wrap,
-    load_meshes,
-    load_preview,
     optional_bool,
     optional_int,
-    optional_number,
-    optional_string,
-    optional_string_list,
-    parse_config,
-    read_vector3,
     require_string,
 )
-from openrct2_x7_renderer.constants import TILE_SIZE
+from openrct2_object_common.loading import (
+    apply_identity,
+    load_colour_presets,
+    load_object,
+    parse_single_frame_model,
+    require_choice,
+)
+from openrct2_object_common.loading import object_type_of as _common_object_type_of
 from openrct2_x7_renderer.mesh import Mesh
 from openrct2_x7_renderer.types import IndexedImage, MeshFrame, Model
 
@@ -38,53 +38,27 @@ from .types import Stall
 log = logging.getLogger(__name__)
 
 
-def _load_units_per_tile(root: dict[str, Any]) -> float:
-    """Render scale: OBJ units per tile. Defaults to RCT2's real-world tile."""
-    upt = optional_number(root, "units_per_tile", TILE_SIZE)
-    if upt <= 0.0:
-        raise LoadError('Property "units_per_tile" must be greater than 0')
-    return upt
-
-
 def _load_identity(obj: Stall, root: dict[str, Any], preview: IndexedImage | None) -> None:
-    """Populate the identity + render-scale fields."""
-    obj.id = require_string(root, "id")
-    obj.original_id = optional_string(root, "original_id")
-    obj.name = require_string(root, "name")
+    """Populate the identity + render-scale fields.
+
+    The shared id/name/authors/version/units_per_tile parse lives in Common
+    (:func:`openrct2_object_common.loading.apply_identity`); the stall's
+    description and preview (no blank fallback) stay here.
+    """
+    apply_identity(obj, root)
     obj.description = require_string(root, "description")
-    obj.authors = optional_string_list(root, "authors")
-    v_str = optional_string(root, "version")
-    if v_str:
-        obj.version = v_str
     obj.preview = preview
-    obj.units_per_tile = _load_units_per_tile(root)
 
 
 def _load_model(value: Any, num_meshes: int) -> tuple[Model, Model]:
     """Parse the single-frame model placement list into (model, door_model):
-    all placements, plus the `door: true` subset (the facility doorway)."""
-    if value is None:
-        raise LoadError('Property "model" not found')
-    arr = as_array_or_wrap(value)
+    all placements, plus the `door: true` subset (the facility doorway).
+
+    The door subset references the same per-placement frame objects as the full
+    model, so a doorway placement is shared between the two by identity."""
     meshes_out: list[list[MeshFrame]] = []
     door_out: list[list[MeshFrame]] = []
-    for elem in arr:
-        if not isinstance(elem, dict):
-            raise LoadError('Property "model" is not an object')
-
-        mi = elem.get("mesh_index")
-        if not isinstance(mi, int) or isinstance(mi, bool):
-            raise LoadError('Property "mesh_index" not found or is not an integer')
-        if mi >= num_meshes or mi < -1:
-            raise LoadError(f"Mesh index {mi} is out of bounds")
-
-        kwargs: dict[str, Any] = {"mesh_index": int(mi)}
-        for key in ("position", "orientation"):
-            prop = elem.get(key)
-            if prop is not None:
-                kwargs[key] = read_vector3(prop)
-
-        frame = [MeshFrame(**kwargs)]
+    for frame, elem in parse_single_frame_model(value, num_meshes):
         meshes_out.append(frame)
         if optional_bool(elem, "door", False):
             door_out.append(frame)
@@ -92,13 +66,12 @@ def _load_model(value: Any, num_meshes: int) -> tuple[Model, Model]:
 
 
 def _load_ride_type(root: dict[str, Any]) -> str:
-    ride_type = require_string(root, "ride_type")
-    if ride_type not in STALL_TYPES:
-        raise LoadError(
-            f'Unrecognized ride_type "{ride_type}" (expected one of '
-            f"{sorted(STALL_TYPES)})"
-        )
-    return ride_type
+    return require_choice(
+        require_string(root, "ride_type"),
+        STALL_TYPES,
+        "ride_type",
+        expected=sorted(STALL_TYPES),
+    )
 
 
 def _load_sells(root: dict[str, Any], ride_type: str) -> list[str]:
@@ -110,11 +83,9 @@ def _load_sells(root: dict[str, Any], ride_type: str) -> list[str]:
         for item in as_array_or_wrap(value):
             if not isinstance(item, str):
                 raise LoadError('Property "sells" must be a string or list of strings')
-            if item not in SHOP_ITEMS:
-                raise LoadError(
-                    f'Unrecognized shop item "{item}" (expected one of {sorted(SHOP_ITEMS)})'
-                )
-            sells.append(item)
+            sells.append(
+                require_choice(item, SHOP_ITEMS, "shop item", expected=sorted(SHOP_ITEMS))
+            )
         if len(sells) > MAX_SELLS:
             raise LoadError(f'Property "sells" lists {len(sells)} items (max {MAX_SELLS})')
 
@@ -146,22 +117,19 @@ def _load_clearance(root: dict[str, Any], ride_type: str) -> int:
 
 
 def _load_car_colours(root: dict[str, Any]) -> list[list[str]]:
-    value = root.get("car_colours")
-    if value is None:
-        return [["black", "black", "black"]]
-    if not isinstance(value, list) or len(value) == 0:
-        raise LoadError('Property "car_colours" is not a non-empty array')
-    presets: list[list[str]] = []
-    for preset in value:
-        if not isinstance(preset, list) or len(preset) != 3:
-            raise LoadError(
-                'Each "car_colours" preset must be a [main, additional1, additional2] triple'
-            )
-        for name in preset:
-            if name not in COLOR_NAMES:
-                raise LoadError(f'Unrecognized colour "{name}"')
-        presets.append([str(name) for name in preset])
-    return presets
+    """Each preset is a required [main, additional1, additional2] colour-name
+    triple; the shared parse (Common) yields indices, mapped back to names here.
+    Defaults to a single all-black preset when absent."""
+    return [
+        [COLOR_NAMES[idx] for idx in triple]
+        for triple in load_colour_presets(
+            root.get("car_colours"),
+            "car_colours",
+            default=[[0, 0, 0]],
+            allow_empty=False,
+            require_triple=True,
+        )
+    ]
 
 
 def build_stall(
@@ -197,23 +165,12 @@ def build_stall(
     return obj
 
 
-def _config_dir(json_path: Path | str) -> Path:
-    """The directory containing the config file; relative `meshes` / `preview`
-    paths resolve against it."""
-    return Path(json_path).parent
-
-
 def load_stall(json_path: Path | str) -> Stall:
     """Parse a config file, load its meshes + preview, build a Stall."""
-    root = parse_config(json_path)
-    base = _config_dir(json_path)
-    return build_stall(root, load_meshes(root, base), load_preview(root, base))
+    return load_object(json_path, build_stall)
 
 
 def object_type_of(config: dict[str, Any]) -> str:
     """Read the object type, defaulting to ride (the only v1 kind; flat rides
     slot in beside it later)."""
-    t = optional_string(config, "object_type", "ride")
-    if t != "ride":
-        raise LoadError(f'Unrecognized object_type "{t}"')
-    return t
+    return _common_object_type_of(config, ("ride",), default="ride")

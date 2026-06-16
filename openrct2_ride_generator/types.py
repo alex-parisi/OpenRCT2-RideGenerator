@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from openrct2_x7_renderer.constants import TILE_SIZE
+from openrct2_object_common.identity import ObjectIdentity
 from openrct2_x7_renderer.types import IndexedImage, Model
 
 if TYPE_CHECKING:
@@ -26,15 +26,8 @@ from .constants import (
 
 
 @dataclass
-class Stall:
-    id: str = ""
-    original_id: str = ""
-    name: str = ""
+class Stall(ObjectIdentity):
     description: str = ""
-    authors: list[str] = field(default_factory=list)
-    version: str = "1.0"
-
-    units_per_tile: float = TILE_SIZE
 
     stall_type: str = "food_stall"
     sells: list[str] = field(default_factory=list)
