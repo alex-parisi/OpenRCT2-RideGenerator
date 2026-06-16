@@ -100,6 +100,85 @@ def _load_flat_ride_model(root: dict[str, Any], num_meshes: int, ride_type: str)
     return Model(meshes=meshes_out)
 
 
+def _load_rider_model(root: dict[str, Any], num_meshes: int, ride_type: str) -> Model:
+    """Parse an animated flat ride's optional rider ring into a multi-frame Model.
+
+    The ``rider_animation.frames`` list mirrors ``animation.frames`` -- one full
+    ``model`` placement list per rider-strip frame -- but poses the seated
+    rider-pair the engine draws over the structure (the carousel's 68 orbit poses,
+    the ferris wheel's 128). Absent, the rider slots stay blank. The frame count
+    must match the ride's declared rider strip so the rendered ring lines up with
+    the engine's per-seat image offsets."""
+    spec = FLAT_RIDE_SPECS[ride_type]
+    anim = root.get("rider_animation")
+    if anim is None:
+        return Model()
+    if not spec.has_rider_ring:
+        raise LoadError(f'A "{ride_type}" flat ride has no rider ring (remove "rider_animation")')
+    if not isinstance(anim, dict):
+        raise LoadError('Property "rider_animation" must be an object with a "frames" array')
+    frames_value = anim.get("frames")
+    if not isinstance(frames_value, list) or not frames_value:
+        raise LoadError(
+            'Property "rider_animation.frames" not found or is not a non-empty array'
+        )
+    if len(frames_value) != spec.rider_frames:
+        raise LoadError(
+            f'A "{ride_type}" rider ring needs exactly {spec.rider_frames} frames, '
+            f"got {len(frames_value)}"
+        )
+    poses = [load_single_frame_model(pose, num_meshes) for pose in frames_value]
+    n = len(poses[0].meshes)
+    for pose in poses:
+        if len(pose.meshes) != n:
+            raise LoadError(
+                "All rider_animation frames must list the same number of model entries"
+            )
+    meshes_out = [[poses[g].meshes[i][0] for g in range(len(poses))] for i in range(n)]
+    return Model(meshes=meshes_out)
+
+
+def _load_rider_rows(root: dict[str, Any], num_meshes: int, ride_type: str) -> list[Model]:
+    """Parse an interleaved-rider ride's optional bench rows (the swinging ship).
+
+    Unlike the trailing rider ring, the swinging ship draws its riders in the
+    sub-slots after each ship sprite -- one per bench row -- so the object supplies
+    one rider sub-model per sub-slot under ``rider_rows`` (each a multi-frame model
+    over the ship's swing blocks, like ``animation.frames``). Absent, the sub-slots
+    stay blank. There must be exactly ``blank_sub_slots`` rows, each with the ride's
+    structure frame count."""
+    spec = FLAT_RIDE_SPECS[ride_type]
+    rows = root.get("rider_rows")
+    if rows is None:
+        return []
+    if not spec.has_rider_sub_slots:
+        raise LoadError(f'A "{ride_type}" flat ride has no rider rows (remove "rider_rows")')
+    if not isinstance(rows, list):
+        raise LoadError('Property "rider_rows" must be a list of bench rows')
+    if len(rows) != spec.blank_sub_slots:
+        raise LoadError(
+            f'A "{ride_type}" needs exactly {spec.blank_sub_slots} rider_rows, got {len(rows)}'
+        )
+    models: list[Model] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise LoadError('Each "rider_rows" entry must be an object with a "frames" array')
+        frames_value = row.get("frames")
+        if not isinstance(frames_value, list) or len(frames_value) != spec.frames:
+            raise LoadError(
+                f'Each "rider_rows" entry needs exactly {spec.frames} frames'
+            )
+        poses = [load_single_frame_model(pose, num_meshes) for pose in frames_value]
+        n = len(poses[0].meshes)
+        for pose in poses:
+            if len(pose.meshes) != n:
+                raise LoadError("All rider_rows frames must list the same number of model entries")
+        models.append(
+            Model(meshes=[[poses[g].meshes[i][0] for g in range(len(poses))] for i in range(n)])
+        )
+    return models
+
+
 def _load_ride_type(root: dict[str, Any]) -> str:
     return require_choice(
         require_string(root, "ride_type"),
@@ -203,8 +282,18 @@ def build_stall(
                 'not a static "model"'
             )
         obj.model = _load_flat_ride_model(root, len(obj.meshes), obj.stall_type)
+        obj.rider_model = _load_rider_model(root, len(obj.meshes), obj.stall_type)
+        obj.rider_sub_models = _load_rider_rows(root, len(obj.meshes), obj.stall_type)
         obj.door_model = Model()
     else:
+        if "rider_animation" in root:
+            raise LoadError(
+                f'A "{obj.stall_type}" ride has no rider ring (remove "rider_animation")'
+            )
+        if "rider_rows" in root:
+            raise LoadError(
+                f'A "{obj.stall_type}" ride has no rider rows (remove "rider_rows")'
+            )
         obj.model, obj.door_model = _load_model(root.get("model"), len(obj.meshes))
     if obj.door_model.meshes and obj.kind is not StallKind.FACILITY:
         raise LoadError(

@@ -261,6 +261,152 @@ def test_flat_ride_static_model_rejected(tmp_path):
         build_stall(cfg, _meshes(tmp_path))
 
 
+def _two_meshes(tmp_path):
+    (tmp_path / "m.obj").write_text(_TRI)
+    return [load_mesh(tmp_path / "m.obj"), load_mesh(tmp_path / "m.obj")]
+
+
+def _rider_frames(n, mesh_index=1):
+    return [
+        [{"mesh_index": mesh_index, "position": [0, 0, 0], "orientation": [360.0 * i / n, 0, 0]}]
+        for i in range(n)
+    ]
+
+
+def test_flat_ride_rider_animation_loaded(tmp_path):
+    spec = FLAT_RIDE_SPECS["merry_go_round"]
+    cfg = _flat_config(rider_animation={"frames": _rider_frames(spec.rider_frames)})
+    stall = build_stall(cfg, _two_meshes(tmp_path))
+    assert len(stall.rider_model.meshes) == 1
+    assert len(stall.rider_model.meshes[0]) == spec.rider_frames
+    # The rider mesh (index 1) is excluded from the structure's colour flags.
+    assert stall.rider_mesh_indices == {1}
+
+
+def test_flat_ride_no_rider_animation_leaves_riders_empty(tmp_path):
+    stall = build_stall(_flat_config(), _meshes(tmp_path))
+    assert stall.rider_model.meshes == []
+    assert stall.rider_mesh_indices == set()
+
+
+def test_flat_ride_rider_animation_wrong_count_rejected(tmp_path):
+    cfg = _flat_config(rider_animation={"frames": _rider_frames(10)})
+    with pytest.raises(LoadError, match="rider ring needs exactly 68"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_flat_ride_without_rider_ring_rejects_rider_animation(tmp_path):
+    # The motion simulator's pod is enclosed, so it has no rider ring.
+    cfg = _flat_config(ride_type="motion_simulator", rider_animation={"frames": _rider_frames(10)})
+    with pytest.raises(LoadError, match="no rider ring"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_swinging_ship_rider_rows_loaded(tmp_path):
+    spec = FLAT_RIDE_SPECS["swinging_ship"]
+    rows = [
+        {"frames": [[{"mesh_index": 1, "position": [0, 0, 0], "orientation": [0, a, 0]}]
+                    for a in range(spec.frames)]}
+        for _ in range(spec.blank_sub_slots)
+    ]
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows=rows)
+    stall = build_stall(cfg, _two_meshes(tmp_path))
+    assert len(stall.rider_sub_models) == spec.blank_sub_slots
+    assert all(len(m.meshes[0]) == spec.frames for m in stall.rider_sub_models)
+    assert stall.rider_mesh_indices == {1}
+
+
+def test_swinging_ship_rider_rows_wrong_count_rejected(tmp_path):
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows=[{"frames": []}])
+    with pytest.raises(LoadError, match="exactly 8 rider_rows"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def _swing_rows(frames=19):
+    return [
+        {"frames": [[{"mesh_index": 1, "position": [0, 0, 0], "orientation": [0, a, 0]}]
+                    for a in range(frames)]}
+        for _ in range(8)
+    ]
+
+
+def test_swinging_ship_rider_rows_not_a_list_rejected(tmp_path):
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows="nope")
+    with pytest.raises(LoadError, match="must be a list of bench rows"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_swinging_ship_rider_row_not_object_rejected(tmp_path):
+    rows = _swing_rows()
+    rows[0] = ["not a dict"]
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows=rows)
+    with pytest.raises(LoadError, match='must be an object with a "frames"'):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_swinging_ship_rider_row_wrong_frame_count_rejected(tmp_path):
+    rows = _swing_rows()
+    rows[0] = {"frames": rows[0]["frames"][:5]}
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows=rows)
+    with pytest.raises(LoadError, match="needs exactly 19 frames"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_swinging_ship_rider_row_uneven_entries_rejected(tmp_path):
+    rows = _swing_rows()
+    rows[0]["frames"][0] = rows[0]["frames"][0] + [
+        {"mesh_index": 1, "position": [0, 0, 0], "orientation": [0, 0, 0]}
+    ]
+    cfg = _flat_config(ride_type="swinging_ship", rider_rows=rows)
+    with pytest.raises(LoadError, match="same number of model entries"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_flat_ride_spec_supports_riders():
+    assert FLAT_RIDE_SPECS["merry_go_round"].supports_riders  # trailing ring
+    assert FLAT_RIDE_SPECS["swinging_ship"].supports_riders  # interleaved sub-slots
+    assert not FLAT_RIDE_SPECS["motion_simulator"].supports_riders  # enclosed pod
+
+
+def test_rider_rows_on_ringless_ride_rejected(tmp_path):
+    # The twist uses a trailing ring, not interleaved rows.
+    cfg = _flat_config(ride_type="twist", rider_rows=[{"frames": []}])
+    with pytest.raises(LoadError, match="no rider rows"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_non_flat_ride_rejects_rider_rows(tmp_path):
+    cfg = _config(rider_rows=[{"frames": []}])
+    with pytest.raises(LoadError, match="no rider rows"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_non_flat_ride_rejects_rider_animation(tmp_path):
+    cfg = _config(rider_animation={"frames": _rider_frames(10)})
+    with pytest.raises(LoadError, match="no rider ring"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_rider_animation_not_object_rejected(tmp_path):
+    cfg = _flat_config(rider_animation=[])
+    with pytest.raises(LoadError, match='"rider_animation" must be an object'):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_rider_animation_empty_frames_rejected(tmp_path):
+    cfg = _flat_config(rider_animation={"frames": []})
+    with pytest.raises(LoadError, match="rider_animation.frames"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
+def test_rider_animation_uneven_entries_rejected(tmp_path):
+    frames = _rider_frames(FLAT_RIDE_SPECS["merry_go_round"].rider_frames)
+    frames[0] = frames[0] + [{"mesh_index": 1, "position": [0, 0, 0], "orientation": [0, 0, 0]}]
+    cfg = _flat_config(rider_animation={"frames": frames})
+    with pytest.raises(LoadError, match="same number of model entries"):
+        build_stall(cfg, _two_meshes(tmp_path))
+
+
 def test_sells_on_flat_ride_rejected(tmp_path):
     with pytest.raises(LoadError, match="merry_go_round"):
         build_stall(_flat_config(sells="drink"), _meshes(tmp_path))

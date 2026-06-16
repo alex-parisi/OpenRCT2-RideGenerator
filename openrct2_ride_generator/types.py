@@ -53,6 +53,15 @@ class Stall(ObjectIdentity):
     # The `door: true` subset of `model` (the facility doorway placements);
     # its rendered screen extent cuts the door sprite out of the full building.
     door_model: Model = field(default_factory=Model)
+    # Animated flat rides only: the rider ring -- a seated rider-pair the engine
+    # draws over the structure, posed once per rider-strip frame (the carousel's
+    # 68 orbit poses, the ferris wheel's 128). Empty leaves the rider slots blank,
+    # as every ride did before visible riders.
+    rider_model: Model = field(default_factory=Model)
+    # The swinging ship's riders are interleaved sub-slots, not a trailing ring:
+    # one rider sub-model per bench row, each posed over the structure's swing
+    # frames. Empty leaves the sub-slots blank.
+    rider_sub_models: list[Model] = field(default_factory=list)
 
     preview: IndexedImage | None = None
 
@@ -83,3 +92,17 @@ class Stall(ObjectIdentity):
     @property
     def num_sprites(self) -> int:
         return PREVIEW_SLOTS + self.num_view_sprites + self.num_overlay_sprites
+
+    @property
+    def rider_mesh_indices(self) -> set[int]:
+        """Meshes referenced only by the riders (the trailing ring or the
+        interleaved sub-models). The riders are recoloured by the peep's t-shirt
+        colours, not the car's, so their Remap regions are excluded from the
+        structure's colour-flag derivation."""
+        return {
+            frame.mesh_index
+            for model in (self.rider_model, *self.rider_sub_models)
+            for placement in model.meshes
+            for frame in placement
+            if frame.mesh_index != -1
+        }

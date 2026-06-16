@@ -111,7 +111,7 @@ def test_render_flat_ride_frames_and_blank_overlays(tmp_path):
     ctx = FakeContext()
     progress = []
     images = render_flat_ride(
-        ctx, [_mesh(tmp_path, _TRI)], _spin_model(32), "merry_go_round",
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(32), Model(), "merry_go_round",
         progress=progress_fn(progress),
     )
     # 32 rendered structure frames + 68 blank rider overlays.
@@ -125,7 +125,7 @@ def test_render_flat_ride_ferris_four_directions(tmp_path):
     ctx = FakeContext()
     progress = []
     images = render_flat_ride(
-        ctx, [_mesh(tmp_path, _TRI)], _spin_model(8), "ferris_wheel",
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(8), Model(), "ferris_wheel",
         progress=progress_fn(progress),
     )
     # 4 directions x 8 frames structure + 512 blank rider overlays.
@@ -137,11 +137,97 @@ def test_render_flat_ride_ferris_four_directions(tmp_path):
 
 def test_render_flat_ride_twist_single_direction(tmp_path):
     ctx = FakeContext()
-    images = render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(24), "twist")
+    images = render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(24), Model(), "twist")
     # 24 structure frames (one symmetric direction) + 216 blank rider overlays.
     assert len(images) == 240
     assert sum(1 for e in ctx.events if e == "begin") == 24
     assert all(img.width == 1 and img.height == 1 for img in images[24:])
+
+
+def test_render_flat_ride_carousel_renders_riders(tmp_path):
+    # With a rider ring, the 68 carousel rider slots render instead of staying
+    # blank: 32 structure + 68 rider images, all 100 rendered.
+    ctx = FakeContext()
+    progress = []
+    rider = Model(meshes=[[
+        MeshFrame(mesh_index=1, orientation=np.array([(s + 13) * 360.0 / 128, 0, 0]))
+        for s in range(68)
+    ]])
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI), _mesh(tmp_path, _TRI, "r.obj")], _spin_model(32),
+        rider, "merry_go_round", progress=progress_fn(progress),
+    )
+    assert len(images) == 100
+    # Every slot opens a render scene (structure + riders), so none is a blank.
+    assert sum(1 for e in ctx.events if e == "begin") == 100
+    assert progress[-1] == (100, 100)
+
+
+def test_render_flat_ride_ferris_renders_riders(tmp_path):
+    # The ferris rider ring is 4 directions x 128 poses; all 512 slots render.
+    ctx = FakeContext()
+    rider = Model(meshes=[[
+        MeshFrame(mesh_index=1, position=np.array([3.0, 3.6, 0.0])) for _ in range(128)
+    ]])
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI), _mesh(tmp_path, _TRI, "r.obj")], _spin_model(8),
+        rider, "ferris_wheel",
+    )
+    assert len(images) == 544  # 32 structure + 512 riders
+    assert sum(1 for e in ctx.events if e == "begin") == 544
+
+
+def test_render_flat_ride_space_rings_renders_riders(tmp_path):
+    # The space rings rider ring matches the structure: 4 directions x 88, all
+    # 352 trailing slots rendered.
+    ctx = FakeContext()
+    rider = Model(meshes=[[
+        MeshFrame(mesh_index=1, orientation=np.array([0, 360.0 * f / 88, 0]))
+        for f in range(88)
+    ]])
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI), _mesh(tmp_path, _TRI, "r.obj")], _spin_model(88),
+        rider, "space_rings",
+    )
+    assert len(images) == 704  # 352 structure + 352 riders
+    assert sum(1 for e in ctx.events if e == "begin") == 704
+
+
+def test_render_flat_ride_swinging_ship_renders_bench_riders(tmp_path):
+    # The 8 sub-slots after each ship sprite render the bench rows in place of
+    # blanks: 2 planes x 19 x (1 ship + 8 riders) all rendered.
+    ctx = FakeContext()
+    rows = [Model(meshes=[[MeshFrame(mesh_index=1) for _ in range(19)]]) for _ in range(8)]
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI), _mesh(tmp_path, _TRI, "r.obj")], _spin_model(19),
+        Model(), "swinging_ship", rider_sub_models=rows,
+    )
+    assert len(images) == 342
+    # Every ship sprite and every bench sub-slot opens a render scene.
+    assert sum(1 for e in ctx.events if e == "begin") == 342
+
+
+def test_render_flat_ride_swinging_ship_blank_sub_slots_without_riders(tmp_path):
+    # No bench geometry -> the 8 sub-slots stay blank (pre-riders behaviour): only
+    # the 2 planes x 19 ship sprites render.
+    ctx = FakeContext()
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(19), Model(), "swinging_ship"
+    )
+    assert len(images) == 342
+    assert sum(1 for e in ctx.events if e == "begin") == 38
+    assert all(img.width == 1 and img.height == 1 for img in images[1:9])
+
+
+def test_render_flat_ride_riders_blank_without_geometry(tmp_path):
+    # A ride whose rider ring carries no geometry keeps the slots blank (the
+    # pre-riders behaviour), so old objects render unchanged.
+    ctx = FakeContext()
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(32), Model(), "merry_go_round"
+    )
+    assert len(images) == 100
+    assert all(img.width == 1 and img.height == 1 for img in images[32:])
 
 
 def _render_view_directions(monkeypatch, ride_type, frames):
@@ -158,7 +244,9 @@ def _render_view_directions(monkeypatch, ride_type, frames):
 
     monkeypatch.setattr(sr, "render_scene_view", spy)
     ctx = FakeContext()
-    images = sr.render_flat_ride(ctx, [_mesh_for(frames)], _spin_model(frames), ride_type)
+    images = sr.render_flat_ride(
+        ctx, [_mesh_for(frames)], _spin_model(frames), Model(), ride_type
+    )
     return seen, images
 
 
@@ -199,7 +287,9 @@ def test_render_flat_ride_swinging_ship_interleaved_blanks(monkeypatch, tmp_path
     )
     monkeypatch.setattr(sr, "render_scene_view", lambda *a, **k: marker)
     ctx = FakeContext()
-    images = sr.render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(19), "swinging_ship")
+    images = sr.render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(19), Model(), "swinging_ship"
+    )
     assert len(images) == 342  # 2 planes x 19 blocks x (1 ship + 8 blank riders)
     # Block 0: plane-0 ship then 8 blanks, plane-1 ship then 8 blanks.
     assert images[0] is marker
@@ -219,7 +309,9 @@ def test_render_flat_ride_empty_pose_blanks(tmp_path):
     # A placement that resolves to no geometry (mesh_index -1) renders a blank
     # without opening a scene.
     ctx = FakeContext()
-    images = render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(32, -1), "merry_go_round")
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(32, -1), Model(), "merry_go_round"
+    )
     assert len(images) == 100
     assert sum(1 for e in ctx.events if e == "begin") == 0
     assert all(img.width == 1 and img.height == 1 for img in images[:32])

@@ -12,8 +12,9 @@ output_directory: .
 # on the origin) and the animation below supplies one pose per rotation frame: a
 # full 360-degree turn about Z in 88 steps (space_rings needs exactly 88). The
 # engine stores 4 view directions x 88 poses (SpaceRings.cpp: base + direction +
-# frame*4), then 4*88 blank rider overlays at offset 352. In Blender you keyframe
-# the tumble and the add-on samples the 88 poses for you. Capacity is 1 per ring.
+# frame*4), then 4*88 rider overlays at offset 352 carrying the visible rider
+# (rider_animation, below). In Blender you keyframe the tumble and the add-on
+# samples the 88 poses for you. Capacity is 1 per ring.
 ride_type: space_rings
 
 # The ring is Remap1 (main colour) and the seat is Remap2 (trim), so painting
@@ -26,6 +27,7 @@ car_colours:
 
 meshes:
   - space_rings.obj
+  - space_rings_rider.obj
 
 animation:
   frames:
@@ -117,3 +119,98 @@ animation:
     - [{mesh_index: 0, position: [0, 1.25, 0], orientation: [0, 347.727, 0]}]
     - [{mesh_index: 0, position: [0, 1.25, 0], orientation: [0, 351.818, 0]}]
     - [{mesh_index: 0, position: [0, 1.25, 0], orientation: [0, 355.909, 0]}]
+
+# Visible rider. One rider on the ring's seat (space_rings_rider.obj, mesh 1),
+# tinted by the peep's shirt (Remap1) and trousers (Remap2). It tumbles WITH the
+# ring, so the rider ring shares the structure's 4 directions x 88 poses. In
+# Blender, mark the rider mesh Rider and it samples with the tumble.
+rider_animation:
+  frames:
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 4.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 8.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 12.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 16.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 20.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 24.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 28.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 32.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 36.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 40.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 45, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 49.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 53.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 57.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 61.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 65.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 69.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 73.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 77.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 81.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 85.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 90, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 94.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 98.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 102.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 106.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 110.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 114.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 118.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 122.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 126.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 130.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 135, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 139.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 143.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 147.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 151.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 155.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 159.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 163.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 167.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 171.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 175.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 180, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 184.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 188.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 192.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 196.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 200.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 204.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 208.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 212.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 216.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 220.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 225, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 229.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 233.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 237.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 241.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 245.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 249.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 253.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 257.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 261.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 265.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 270, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 274.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 278.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 282.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 286.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 290.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 294.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 298.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 302.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 306.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 310.909, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 315, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 319.091, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 323.182, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 327.273, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 331.364, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 335.455, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 339.545, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 343.636, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 347.727, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 351.818, 0]}]
+    - [{mesh_index: 1, position: [0, 1.25, 0], orientation: [0, 355.909, 0]}]

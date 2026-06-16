@@ -43,8 +43,16 @@ def _build_car_entry(stall: Stall) -> dict[str, Any]:
         car["loadingWaypoints"] = [[list(p) for p in wp] for wp in meta.waypoints]
     car["numSeats"] = stall.num_seats
     # The colour window shows the trim/tertiary pickers only when the car
-    # opts in; derive that from the remap regions the materials actually use.
-    regions = {m.region for mesh in stall.meshes for m in mesh.materials}
+    # opts in; derive that from the remap regions the structure materials use.
+    # Rider meshes are recoloured by the peep's t-shirt colours, not the car's,
+    # so their Remap regions never opt the car into a trim/tertiary picker.
+    rider_meshes = stall.rider_mesh_indices
+    regions = {
+        m.region
+        for i, mesh in enumerate(stall.meshes)
+        if i not in rider_meshes
+        for m in mesh.materials
+    }
     if 2 in regions:
         car["hasAdditionalColour1"] = True
     if 3 in regions:
@@ -110,7 +118,8 @@ def _render_views(
         # The flat ride is posed per frame (its authored spin), so it renders
         # straight from the multi-frame model rather than a single baked mesh.
         return render_flat_ride(
-            context, stall.meshes, stall.model, stall.stall_type, progress
+            context, stall.meshes, stall.model, stall.rider_model, stall.stall_type, progress,
+            rider_sub_models=stall.rider_sub_models,
         )
     combined = combine_model_world(stall.meshes, stall.model)
     if stall.kind is StallKind.FACILITY:

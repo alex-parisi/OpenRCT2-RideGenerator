@@ -308,6 +308,30 @@ def carousel():
     o.write(BUILD / "carousel.obj")
 
 
+# The carousel's visible riders: one seat's rider-pair, rendered by the engine at
+# 68 of 128 orbit positions (the front-visible arc). Authored at a horse (radius
+# 1.45 along +X, seat height) so the rider ring rotates it about +Y to each orbit
+# angle, exactly like the platform spin. The two riders are Remap1 / Remap2 so the
+# engine tints each by its peep's t-shirt colour.
+CAROUSEL_RIDER_RADIUS = 1.45
+CAROUSEL_RIDER_FRAMES = 68
+
+
+def carousel_rider():
+    o = ObjBuilder(
+        "Merry-go-round riders (placeholder): a seated pair on a horse.\n"
+        "# Remap1 / Remap2 are the two riders' shirts (the engine tints each by a\n"
+        "# peep's t-shirt colour). Authored at horse 0 (radius 1.45 along +X); the\n"
+        "# rider ring rotates it about +Y to each of 68 orbit poses."
+    )
+    cx = CAROUSEL_RIDER_RADIUS
+    for mat, z0, z1 in (("Remap1", -0.30, -0.02), ("Remap2", 0.02, 0.30)):
+        o.box(mat, cx - 0.24, cx + 0.24, 1.55, 2.0, z0, z1)  # torso
+        o.box("Skin", cx - 0.13, cx + 0.13, 2.0, 2.26, (z0 + z1) / 2 - 0.13,
+              (z0 + z1) / 2 + 0.13)  # head
+    o.write(BUILD / "carousel_rider.obj")
+
+
 # Ferris wheel geometry, shared by the mesh builders and the spin emitter so the
 # orbiting gondolas line up with the rim. The wheel disc is authored in the X-Y
 # plane (axle along Z) centred at the origin; the spin lifts it to the axle.
@@ -348,6 +372,114 @@ def ferris_gondola():
     o.box("Remap2", -0.32, 0.32, -0.78, -0.15, -0.26, 0.26)  # cabin
     o.box("RoofSlate", -0.34, 0.34, -0.15, -0.08, -0.28, 0.28)  # roof
     o.write(BUILD / "gondola.obj")
+
+
+# The ferris wheel's visible riders: one gondola's rider-pair. Authored hanging
+# from the origin (the rim attachment, like gondola.obj) so the rider ring orbits
+# it upright -- a pure translation around the axle, never a rotation -- to each of
+# 128 positions, per view direction. Remap1 / Remap2 are the two shirts.
+FERRIS_RIDER_FRAMES = 128
+
+
+def ferris_rider():
+    o = ObjBuilder(
+        "Ferris wheel riders (placeholder): a seated pair inside a gondola.\n"
+        "# Remap1 / Remap2 are the two riders' shirts. Authored hanging from the\n"
+        "# origin (the rim attachment) so the rider ring orbits it upright to each\n"
+        "# of 128 positions, like the gondola it rides in."
+    )
+    for mat, x0, x1 in (("Remap1", -0.26, -0.02), ("Remap2", 0.02, 0.26)):
+        o.box(mat, x0, x1, -0.58, -0.28, -0.2, 0.2)  # torso
+        o.box("Skin", (x0 + x1) / 2 - 0.1, (x0 + x1) / 2 + 0.1, -0.28, -0.1,
+              -0.1, 0.1)  # head
+    o.write(BUILD / "ferris_rider.obj")
+
+
+# The twist's visible riders: one tub's rider-pair, rendered at 216 rotation
+# phases of the full turn (Twist.cpp `base + 24 + (frameNum + seat*12) % 216`),
+# single view. Authored in a rim tub (radius 1.5 along +X); the rider ring rotates
+# it about +Y like the platform. Remap1 / Remap2 are the two shirts.
+TWIST_RIDER_RADIUS = 1.5
+TWIST_RIDER_FRAMES = 216
+
+
+def twist_rider():
+    o = ObjBuilder(
+        "Twist riders (placeholder): a seated pair in a rim tub.\n"
+        "# Remap1 / Remap2 are the two riders' shirts. Authored at tub 0 (radius\n"
+        "# 1.5 along +X); the rider ring rotates it about +Y to each of 216 phases."
+    )
+    cx = TWIST_RIDER_RADIUS
+    for mat, z0, z1 in (("Remap1", -0.26, -0.02), ("Remap2", 0.02, 0.26)):
+        o.box(mat, cx - 0.2, cx + 0.2, 1.0, 1.45, z0, z1)  # torso
+        o.box("Skin", cx - 0.1, cx + 0.1, 1.45, 1.66, (z0 + z1) / 2 - 0.1,
+              (z0 + z1) / 2 + 0.1)  # head
+    o.write(BUILD / "twist_rider.obj")
+
+
+# The enterprise's visible riders: a single rider in a pod. The pods are enclosed,
+# so the engine shows riders only near the bottom -- 3 animation sub-frames x 16
+# folded angular positions (Enterprise.cpp `base + 196 + ...`), a single view.
+# Authored in pod 0 (radius 3.4 along +X, in the wheel's X-Y plane); the rider ring
+# rotates it about the axle (Z) with the wheel. Remap1 is the rider's shirt.
+ENTERPRISE_RIDER_FRAMES = 48
+
+
+def enterprise_rider():
+    o = ObjBuilder(
+        "Enterprise rider (placeholder): a single rider in a pod.\n"
+        "# Remap1 is the rider's shirt. Authored in pod 0 (radius 3.4 along +X in\n"
+        "# the wheel's X-Y plane); the rider ring rotates it about the axle (Z) with\n"
+        "# the wheel. The pods are enclosed, so the engine shows riders only at the\n"
+        "# bottom: 48 poses (3 sub-frames x 16 folded angles), single view."
+    )
+    cx = ENTERPRISE_RADIUS
+    o.box("Remap1", cx - 0.2, cx + 0.2, -0.2, 0.22, -0.16, 0.16)  # torso
+    o.box("Skin", cx - 0.1, cx + 0.1, 0.22, 0.42, -0.1, 0.1)  # head
+    o.write(BUILD / "enterprise_rider.obj")
+
+
+# The space rings' visible rider: one rider on the ring's seat, tumbling with the
+# ring (SpaceRings.cpp `base + 352 + direction + frame*4`) -- the same 4 directions
+# x 88 poses as the structure. Authored on the seat at the ring's bottom; Remap1 is
+# the shirt, Remap2 the trousers (the engine tints each separately).
+SPACE_RINGS_RIDER_FRAMES = 88
+
+
+def space_rings_rider():
+    o = ObjBuilder(
+        "Space rings rider (placeholder): one rider on the ring's seat.\n"
+        "# Remap1 is the shirt, Remap2 the trousers. Authored on the seat at the\n"
+        "# ring's bottom; the rider tumbles with the ring (4 directions x 88 poses)."
+    )
+    cy = -SPACE_RINGS_RADIUS + 0.2  # seat top, at the ring's bottom rim
+    o.box("Remap2", -0.2, 0.2, cy, cy + 0.26, -0.2, 0.2)  # legs / trousers
+    o.box("Remap1", -0.2, 0.2, cy + 0.26, cy + 0.56, -0.2, 0.2)  # torso / shirt
+    o.box("Skin", -0.1, 0.1, cy + 0.56, cy + 0.76, -0.1, 0.1)  # head
+    o.write(BUILD / "space_rings_rider.obj")
+
+
+# The swinging ship's visible riders: 8 bench rows of rider-pairs, each filling a
+# sub-slot after its ship sprite (SwingingShip.cpp `base + ship + 1 + row*2 +
+# ((dir>>1)^col)`). One rider-pair authored at the OBJ origin; the rider rows place
+# it at 8 bench positions (4 fore-aft x 2 port/starboard) and swing it with the
+# ship. Remap1 / Remap2 are the two shirts.
+SWINGING_SHIP_BENCH_ROWS = 8
+SWINGING_SHIP_BENCH_Y = -2.0  # OBJ +Y of the bench seats, just above the deck
+
+
+def swinging_ship_rider():
+    o = ObjBuilder(
+        "Swinging ship riders (placeholder): one bench's rider-pair.\n"
+        "# Remap1 / Remap2 are the two shirts. Authored at the OBJ origin; the 8\n"
+        "# rider rows place it at the benches (4 fore-aft x 2 port/starboard) and\n"
+        "# swing it with the ship about +Z."
+    )
+    for mat, x0, x1 in (("Remap1", -0.32, -0.04), ("Remap2", 0.04, 0.32)):
+        o.box(mat, x0, x1, 0.0, 0.42, -0.18, 0.18)  # torso
+        o.box("Skin", (x0 + x1) / 2 - 0.09, (x0 + x1) / 2 + 0.09, 0.42, 0.62,
+              -0.09, 0.09)  # head
+    o.write(BUILD / "swinging_ship_rider.obj")
 
 
 TWIST_FRAMES = 24
@@ -578,6 +710,106 @@ def _ferris_wheel_frames() -> list[str]:
     return lines
 
 
+def _merry_go_round_rider_frames() -> list[str]:
+    # The carousel's rider ring is one seat's pair at ring positions 13..80 of 128
+    # (MerryGoRound.cpp `base + 32 + ((seatOffset + rotation) % 128 - 13)`, valid
+    # 0..67): rotate the rest pose (mesh 1) about +Y to each of those 68 angles.
+    lines = []
+    for s in range(CAROUSEL_RIDER_FRAMES):
+        yaw = round((s + 13) * 360.0 / 128.0, 3)
+        lines.append(
+            f"    - [{{mesh_index: 1, position: [0, 0, 0], "
+            f"orientation: [{yaw:g}, 0, 0]}}]"
+        )
+    return lines
+
+
+def _ferris_wheel_rider_frames() -> list[str]:
+    # The ferris wheel's rider ring is one gondola's pair orbiting the axle upright
+    # at 128 positions (FerrisWheel.cpp `base + 32 + direction*128 + frame`):
+    # translate the rest pose (mesh 2) around the rim, orientation fixed (upright).
+    lines = []
+    for s in range(FERRIS_RIDER_FRAMES):
+        ang = math.radians(s * 360.0 / FERRIS_RIDER_FRAMES)
+        x = round(FERRIS_RADIUS * math.cos(ang), 3)
+        y = round(FERRIS_AXLE_Y + FERRIS_RADIUS * math.sin(ang), 3)
+        lines.append(
+            f"    - [{{mesh_index: 2, position: [{x:g}, {y:g}, 0], "
+            f"orientation: [0, 0, 0]}}]"
+        )
+    return lines
+
+
+def _twist_rider_frames() -> list[str]:
+    # One tub's pair at 216 rotation phases of the full turn, about +Y (mesh 1).
+    lines = []
+    for s in range(TWIST_RIDER_FRAMES):
+        yaw = round(s * 360.0 / TWIST_RIDER_FRAMES, 3)
+        lines.append(
+            f"    - [{{mesh_index: 1, position: [0, 0, 0], "
+            f"orientation: [{yaw:g}, 0, 0]}}]"
+        )
+    return lines
+
+
+def _enterprise_rider_frames() -> list[str]:
+    # 48 poses = 3 animation sub-frames x 16 folded angular positions, ordered
+    # `index = animFrame*16 + posIndex` (Enterprise.cpp). posIndex steps the pod a
+    # coarse 22.5 deg; animFrame subdivides it by 7.5 deg. Rotate the pod rider
+    # (mesh 1) about the axle (Z), lifted to the hub.
+    lines = []
+    for s in range(ENTERPRISE_RIDER_FRAMES):
+        pos_index, anim_frame = s % 16, s // 16
+        angle = round((pos_index * 3 + anim_frame) * 7.5, 3)
+        lines.append(
+            f"    - [{{mesh_index: 1, position: [0, {ENTERPRISE_HUB_Y:g}, 0], "
+            f"orientation: [0, {angle:g}, 0]}}]"
+        )
+    return lines
+
+
+def _space_rings_rider_frames() -> list[str]:
+    # The rider tumbles with the ring: the same 88-pose spin about the axle (Z),
+    # lifted clear of the ground (mesh 1), rendered at 4 directions by the engine.
+    lines = []
+    for f in range(SPACE_RINGS_RIDER_FRAMES):
+        spin = round(f * 360.0 / SPACE_RINGS_RIDER_FRAMES, 3)
+        lines.append(
+            f"    - [{{mesh_index: 1, position: [0, {SPACE_RINGS_LIFT:g}, 0], "
+            f"orientation: [0, {spin:g}, 0]}}]"
+        )
+    return lines
+
+
+def _swinging_ship_swing_angles() -> list[float]:
+    """The 19 swing-block angles, matching the structure's `animation.frames`."""
+    amp = SWINGING_SHIP_AMPLITUDE
+    return [0.0] + [amp * r / 9 for r in range(1, 10)] + [-amp * r / 9 for r in range(1, 10)]
+
+
+def _swinging_ship_rider_rows() -> list[str]:
+    # 8 bench rows (sub-slot k -> row k//2 fore-aft, col k%2 port/starboard), each a
+    # rider-pair (mesh 1) authored at the origin and swung with the ship: the bench
+    # offset is rotated about the pivot (+Z) by the swing angle, like the hull.
+    lines = ["rider_rows:"]
+    angles = _swinging_ship_swing_angles()
+    for k in range(SWINGING_SHIP_BENCH_ROWS):
+        row, col = k // 2, k % 2
+        bx = 1.5 - row * 1.0
+        bz = -0.5 + col * 1.0
+        by = SWINGING_SHIP_BENCH_Y
+        lines.append("  - frames:")
+        for a_deg in angles:
+            a = math.radians(a_deg)
+            px = round(bx * math.cos(a) - by * math.sin(a), 3)
+            py = round(SWINGING_SHIP_PIVOT + bx * math.sin(a) + by * math.cos(a), 3)
+            lines.append(
+                f"      - [{{mesh_index: 1, position: [{px:g}, {py:g}, {bz:g}], "
+                f"orientation: [0, {round(a_deg, 3):g}, 0]}}]"
+            )
+    return lines
+
+
 def _twist_frames() -> list[str]:
     lines = []
     for i in range(TWIST_FRAMES):
@@ -617,10 +849,38 @@ def print_spin(ride: str) -> None:
     print("\n".join(emit[ride]()))
 
 
+# Rides whose riders form a trailing ring (`rider_animation.frames`).
+RIDER_EMITTERS = {
+    "merry_go_round": _merry_go_round_rider_frames,
+    "ferris_wheel": _ferris_wheel_rider_frames,
+    "twist": _twist_rider_frames,
+    "enterprise": _enterprise_rider_frames,
+    "space_rings": _space_rings_rider_frames,
+}
+
+# Rides whose riders are interleaved bench rows (`rider_rows`), emitting the whole
+# block (the row layout is not a single frames list).
+RIDER_ROW_EMITTERS = {
+    "swinging_ship": _swinging_ship_rider_rows,
+}
+
+
+def print_riders(ride: str) -> None:
+    """Re-emit a flat ride's rider block for its example config."""
+    if ride in RIDER_ROW_EMITTERS:
+        print("\n".join(RIDER_ROW_EMITTERS[ride]()))
+        return
+    print("rider_animation:")
+    print("  frames:")
+    print("\n".join(RIDER_EMITTERS[ride]()))
+
+
 BUILDERS = (
     food_stall, drink_stall, shop, information_kiosk, cash_machine, first_aid,
-    crooked_house, haunted_house, carousel, ferris_wheel, ferris_gondola,
-    twist, enterprise, motion_simulator, swinging_ship, space_rings,
+    crooked_house, haunted_house, carousel, carousel_rider, ferris_wheel,
+    ferris_gondola, ferris_rider, twist, twist_rider, enterprise, enterprise_rider,
+    motion_simulator, swinging_ship, swinging_ship_rider, space_rings,
+    space_rings_rider,
 )
 
 
@@ -634,9 +894,17 @@ def main() -> None:
         ),
         help="print the named flat ride's animation.frames block and exit",
     )
+    parser.add_argument(
+        "--print-riders",
+        choices=tuple(RIDER_EMITTERS) + tuple(RIDER_ROW_EMITTERS),
+        help="print the named flat ride's rider block (rider_animation / rider_rows) and exit",
+    )
     args = parser.parse_args()
     if args.print_spin:
         print_spin(args.print_spin)
+        return
+    if args.print_riders:
+        print_riders(args.print_riders)
         return
     for builder in BUILDERS:
         builder()

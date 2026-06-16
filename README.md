@@ -73,21 +73,24 @@ ride operates normally but shows no popping ghost.
 Animated flat rides are rides whose structure is a **vehicle sprite the engine
 spins** by cycling a ring of rotation frames. The structure is authored once and
 **animated** — in Blender, keyframe the spin and the add-on samples it into the
-ring; in a CLI config, list one pose per frame under `animation.frames`. The
-trailing rider slots are emitted blank (like the haunted house's ghosts), and
-`seats` sets capacity. Four layouts ship today:
+ring; in a CLI config, list one pose per frame under `animation.frames`. Each
+ride carries **rider slots** the engine draws over the structure; `seats` sets
+capacity. The rider slots are emitted blank (like the haunted house's ghosts)
+unless the object supplies riders — see [Riders](#riders) below (every flat ride
+but the enclosed motion simulator ships visible riders today). Four layouts ship
+today:
 
 - **`merry_go_round`** — a 3x3 carousel, centred on the middle tile. The engine
   folds the camera rotation out (`base + frame`), so the ring is a single
   symmetric spin reused for every view direction: **32 poses**, a full turn
-  about +Y. Build it roughly **4-fold symmetric**. (+68 rider slots, default 16
-  seats.)
+  about +Y. Build it roughly **4-fold symmetric**. (+68 rider slots — one seat's
+  pair on the front-visible arc; default 16 seats.)
 - **`ferris_wheel`** — a 1x4 vertical wheel. It is *not* vertically symmetric, so
   the engine stores **4 directions × 8 poses** (`base + direction*8 + frame`).
   The A-frame legs are base-game graphics, so the object provides only the
   rotating wheel and its gondolas (which orbit but stay upright); the 8 poses
-  span one gondola spacing so an 8-fold wheel loops seamlessly. (+512 rider
-  slots, default 32 seats.)
+  span one gondola spacing so an 8-fold wheel loops seamlessly. (+512 rider slots
+  — one gondola's pair orbiting the axle, 4 directions × 128; default 32 seats.)
 - **`twist`** — a 3x3 spinning platform (a thrill ride). Like the carousel it is
   one symmetric ring the engine reuses for every view (`base + frame % 24`), so
   build it roughly **4-fold symmetric** and keyframe a full turn about +Y in
@@ -109,20 +112,54 @@ trailing rider slots are emitted blank (like the haunted house's ghosts), and
 - **`swinging_ship`** — a 1x5 pirate boat that swings on an A-frame (a thrill
   ride). The engine stores **2 camera planes × 19 swing blocks** (block 0
   upright, 1–9 leaning one way, 10–18 the other; `base + plane*9 + swing*18`),
-  each ship sprite trailed by 8 (blank) rider slots. The A-frame supports are
+  each ship sprite trailed by 8 rider slots (the bench rows). The A-frame supports are
   base-game graphics, so the object provides only the ship. In Blender you
   keyframe a natural back-and-forth swing and the add-on samples it into the 19
   block poses; a CLI config lists the 19 poses in block order. (Default 16 seats.)
 - **`space_rings`** — a 3x3 ride of tumbling rings (a gentle ride). The object
   provides **one** ring (4 directions × 88 spin poses, `base + direction +
   frame*4`); the engine spawns four of them across the footprint
-  (`carsPerFlatRide` 4). Keyframe one ring's full tumble about its axle; 4×88
-  blank rider overlays follow. (1 seat per ring.)
+  (`carsPerFlatRide` 4). Keyframe one ring's full tumble about its axle; the
+  rider tumbles with it (4×88 rider overlays). (1 seat per ring.)
 
 > The example meshes are placeholders sized to render cleanly; rides that reuse
 > base-game graphics — the ferris wheel's A-frame axle, the motion simulator's
 > boarding stairs — must line up with those sprites, which is best checked
 > in-game.
+
+### Riders
+
+An animated flat ride can carry **visible riders**: seated peeps the engine draws
+over the spinning structure and recolours **per rider** by each peep's t-shirt
+colour. Give a rider's shirt **`Remap1`** and (for a pair) the second shirt
+**`Remap2`** (the engine passes the peep colours as the image's primary and
+secondary remap), then:
+
+- **In Blender** — model the rider on a seat, parent it into the spinning
+  structure, and give it the **Rider** role. It animates with the spin you
+  already keyframe; the add-on samples it into the ride's rider slots. (The
+  swinging ship wants one Rider object per bench row, assigned to sub-slots in
+  name order.)
+- **In a CLI config** — add a `rider_animation.frames` list beside
+  `animation.frames` (or, for the swinging ship, a `rider_rows` list of bench
+  rows), referencing the rider mesh(es).
+  `scripts/gen_example_meshes.py --print-riders <ride>` emits the block (see the
+  worked example for each ride below).
+
+The rider layout is the engine's, so each ride has a fixed shape:
+
+| `ride_type`      | Riders                                                  |
+|------------------|---------------------------------------------------------|
+| `merry_go_round` | **68** poses — one seat's pair on the front-visible arc (ring positions 13–80 of 128), rotating about +Y with the platform; single view. |
+| `ferris_wheel`   | **4 × 128** poses — one gondola's pair orbiting the axle **upright**, per view direction. |
+| `twist`          | **216** poses — one seat's pair at 216 rotation phases of the full turn, single view. |
+| `enterprise`     | **48** poses — a single rider in an enclosed pod, shown only near the bottom (3 sub-frames × 16 folded angles), single view; `Remap1` only. |
+| `space_rings`    | **4 × 88** poses — one rider tumbling **with** the ring (shirt `Remap1`, trousers `Remap2`), the same ring as the structure. |
+| `swinging_ship`  | **8 bench rows** of rider-pairs *interleaved* after each ship sprite (2 planes × 19 swings), each swinging with the ship. |
+
+The motion simulator's pod is enclosed, so it has no riders. Riders reuse the
+same per-ride conventions as base-game sprites (orbit phase, seat radius, the
+enterprise's folded angles), so their exact alignment is best checked in-game.
 
 ### CLI Quickstart
 
@@ -167,6 +204,12 @@ Install the resulting `.parkobj` into OpenRCT2's `object/` directory and
 OBJ meshes use **+X = forward**, **+Y = up**, **+Z = right**, with one tile =
 `TILE_SIZE` units and the building centred on the tile. Materials are
 classified by **name** (`Remap1`/`Remap2`/`Remap3` for colour remap regions).
+
+Each mesh has a **role**: *Geometry* (part of the model), *Door* (a facility
+doorway, below), *Rider* (a flat ride's seated rider-pair, see
+[Riders](#riders)), or *Ignore*. In Blender the role selector offers only the
+roles that apply to the chosen ride type — *Door* for facilities, *Rider* for
+the merry-go-round and ferris wheel.
 
 **Facilities (toilets / first aid) must be authored with the door facing
 OBJ +X** (the same +X axis in Blender), with the doorway (door + frame) as a

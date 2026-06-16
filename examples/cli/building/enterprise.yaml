@@ -15,8 +15,9 @@ output_directory: .
 # are rigidly attached and rotate WITH the wheel (riders invert), so the whole
 # structure is one rigid spin about its axle (Z), lifted to the hub height. The
 # 49 frames span one full turn, so frame 49 == frame 0. In Blender, keyframe
-# this spin and the add-on samples the 49 poses for you. 48 blank rider slots
-# follow; capacity defaults to 16, clearance to 160.
+# this spin and the add-on samples the 49 poses for you. The 48 rider slots that
+# follow carry the riders (rider_animation, below); capacity defaults to 16,
+# clearance to 160.
 ride_type: enterprise
 
 # The rim + pods are Remap1 (main) / Remap2 (trim), so painting stays on with
@@ -29,6 +30,7 @@ car_colours:
 
 meshes:
   - enterprise.obj
+  - enterprise_rider.obj
 
 animation:
   frames:
@@ -81,3 +83,58 @@ animation:
     - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 337.959, 0]}]
     - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 345.306, 0]}]
     - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 352.653, 0]}]
+
+# Visible riders. A single rider in a pod (enterprise_rider.obj, mesh 1), tinted
+# by the peep's shirt (Remap1). The pods are enclosed, so the engine shows riders
+# only near the bottom: 48 poses (3 sub-frames x 16 folded angles), single view.
+# In Blender, mark the rider mesh Rider and it samples with the wheel spin.
+rider_animation:
+  frames:
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 22.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 45, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 67.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 90, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 112.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 135, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 157.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 180, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 202.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 225, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 247.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 270, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 292.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 315, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 337.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 7.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 30, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 52.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 75, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 97.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 120, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 142.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 165, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 187.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 210, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 232.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 255, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 277.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 300, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 322.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 345, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 15, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 37.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 60, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 82.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 105, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 127.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 150, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 172.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 195, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 217.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 240, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 262.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 285, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 307.5, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 330, 0]}]
+    - [{mesh_index: 1, position: [0, 4.2, 0], orientation: [0, 352.5, 0]}]

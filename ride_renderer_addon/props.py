@@ -20,6 +20,7 @@ from openrct2_object_common.blender.props import (
 )
 from openrct2_ride_generator.constants import (
     COLOR_NAMES,
+    FLAT_RIDE_SPECS,
     SHOP_ITEMS,
     SHOP_SELL_TYPES,
     STALL_TYPES,
@@ -40,9 +41,11 @@ STALL_TYPE_ITEMS = [
     ("circus", "Circus", "3x3 building ride, model centred on the middle tile"),
     ("3d_cinema", "3D Cinema", "3x3 building ride (thrill), model centred on the middle tile"),
     ("merry_go_round", "Merry-Go-Round",
-     "Animated 3x3 flat ride: keyframe a 360-degree spin; the add-on samples it"),
+     "Animated 3x3 flat ride: keyframe a 360-degree spin; the add-on samples it "
+     "(give riders the Rider role for visible riders)"),
     ("ferris_wheel", "Ferris Wheel",
-     "Animated 1x4 flat ride: keyframe the wheel spin (gondolas stay upright)"),
+     "Animated 1x4 flat ride: keyframe the wheel spin (gondolas stay upright); "
+     "give riders the Rider role for visible riders"),
     ("twist", "Twist",
      "Animated 3x3 flat ride: keyframe a 360-degree spin (symmetric, like the carousel)"),
     ("enterprise", "Enterprise",
@@ -59,32 +62,83 @@ SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITE
 
 COLOUR_ITEMS = simple_items(COLOR_NAMES)
 
-OBJECT_ROLE_ITEMS = [
-    ("GEOMETRY", "Geometry", "Part of the stall model"),
-    (
-        "DOOR",
-        "Door",
-        "Facility doorway (door + frame, facing +X): cut into the separate "
-        "door sprite so guests sort into it; still part of the building",
-    ),
-    ("IGNORE", "Ignore", "Not part of the stall"),
-]
-
 def is_facility(stall_type: str) -> bool:
-    return STALL_TYPES[stall_type] is StallKind.FACILITY
+    return stall_type in STALL_TYPES and STALL_TYPES[stall_type] is StallKind.FACILITY
 
 
 def is_building(stall_type: str) -> bool:
-    return STALL_TYPES[stall_type] is StallKind.BUILDING
+    return stall_type in STALL_TYPES and STALL_TYPES[stall_type] is StallKind.BUILDING
 
 
 def is_flat_ride(stall_type: str) -> bool:
-    return STALL_TYPES[stall_type] is StallKind.FLAT_RIDE
+    return stall_type in STALL_TYPES and STALL_TYPES[stall_type] is StallKind.FLAT_RIDE
+
+
+def supports_riders(stall_type: str) -> bool:
+    """Flat rides whose engine rider layout is known, so a Rider-role mesh can be
+    sampled into the rider ring (or, for the swinging ship, its bench sub-slots)."""
+    spec = FLAT_RIDE_SPECS.get(stall_type)
+    return spec is not None and spec.supports_riders
 
 
 def can_sell(stall_type: str) -> bool:
     """Shop-kind types that may carry a `sells` item (the cash machine cannot)."""
     return stall_type in SHOP_SELL_TYPES
+
+
+# Object roles, keyed by identifier -> (label, description, stable id). The id is
+# fixed so the *context-filtered* items list (Door only for facilities, Rider only
+# for rider-bearing flat rides) never reindexes a stored value -- a callback-driven
+# EnumProperty is stored by its number, not its identifier.
+_ROLE_DEFS = {
+    "GEOMETRY": ("Geometry", "Part of the ride model", 0),
+    "DOOR": (
+        "Door",
+        "Facility doorway (door + frame, facing +X): cut into the separate door "
+        "sprite so guests sort into it; still part of the building "
+        "(facility ride types only)",
+        1,
+    ),
+    "IGNORE": ("Ignore", "Not part of the ride", 2),
+    "RIDER": (
+        "Rider",
+        "A seated rider-pair the engine draws over the structure, recoloured per "
+        "rider by the peep's t-shirt colour (give the two riders Remap 1 / Remap 2 "
+        "materials); sampled into the ride's rider ring as it spins "
+        "(merry-go-round and ferris wheel only)",
+        3,
+    ),
+}
+
+
+def _role_item(identifier: str) -> tuple[str, str, str, int, int]:
+    label, desc, num = _ROLE_DEFS[identifier]
+    return (identifier, label, desc, 0, num)
+
+
+# Blender garbage-collects an items callback's return value unless a reference is
+# held, so cache each filtered list by its (door, rider) signature.
+_ROLE_ITEMS_CACHE: dict[tuple[bool, bool], list[tuple[str, str, str, int, int]]] = {}
+
+
+def object_role_items(self, context):
+    """Role choices for the active ride type: Geometry / Ignore always, Door only
+    for facilities, Rider only for the rider-bearing flat rides."""
+    stall_type = ""
+    if context is not None and context.scene is not None:
+        stall_type = context.scene.vgr_stall.stall_type
+    key = (is_facility(stall_type), supports_riders(stall_type))
+    cached = _ROLE_ITEMS_CACHE.get(key)
+    if cached is None:
+        items = [_role_item("GEOMETRY")]
+        if key[0]:
+            items.append(_role_item("DOOR"))
+        if key[1]:
+            items.append(_role_item("RIDER"))
+        items.append(_role_item("IGNORE"))
+        _ROLE_ITEMS_CACHE[key] = items
+        cached = items
+    return cached
 
 
 class VGRMaterialSettings(SharedMaterialSettings):
@@ -101,9 +155,8 @@ class VGRMaterialSettings(SharedMaterialSettings):
 class VGRObjectSettings(PropertyGroup):
     role: EnumProperty(
         name="Role",
-        description="Whether this object is part of the stall model",
-        items=OBJECT_ROLE_ITEMS,
-        default="GEOMETRY",
+        description="Whether this object is part of the ride model",
+        items=object_role_items,
     )
     is_ghost: BoolProperty(
         name="Ghost",

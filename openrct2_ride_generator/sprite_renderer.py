@@ -100,51 +100,111 @@ def render_building(
     return images
 
 
+def _render_pose(context: Context, combined: Mesh, direction: int) -> IndexedImage:
+    """One baked pose rendered from a view direction (blank if it has no geometry)."""
+    if combined.faces.shape[0] == 0:
+        return IndexedImage.blank(1, 1)
+    return render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[direction])
+
+
+def _render_ring(
+    context: Context,
+    meshes: list[Mesh],
+    model: Model,
+    directions: int,
+    frames: int,
+    direction_minor: bool,
+    blank_sub_slots: int = 0,
+    progress: ProgressFn | None = None,
+    progress_done: int = 0,
+    progress_total: int = 0,
+    sub_models: list[Model] | None = None,
+) -> list[IndexedImage]:
+    """Render one ring of a flat ride: a multi-frame ``model`` baked pose by pose
+    and rendered from each view direction, in the engine's image order.
+
+    ``direction_minor`` selects that order: direction-major (``image = direction *
+    frames + frame``, the ferris/carousel layout) or direction-minor (``image =
+    frame * directions + direction``, ``Enterprise.cpp`` reads ``base +
+    (animationFrame << 2) + direction``). Each rendered image is trailed by
+    ``blank_sub_slots`` interleaved slots (the swinging ship's per-bench riders):
+    blank, or -- when ``sub_models`` is given (one model per sub-slot) -- that
+    bench row's rider posed at the same frame and view. Used for both the structure
+    ring and the trailing rider ring."""
+    # Each pose's baked mesh is the same across directions, so bake once per pose.
+    posed = [combine_model_world(meshes, model, frame=f) for f in range(frames)]
+    sub_posed = None
+    if sub_models:
+        sub_posed = [
+            [combine_model_world(meshes, sm, frame=f) for f in range(frames)]
+            for sm in sub_models
+        ]
+    if direction_minor:
+        order = [(d, f) for f in range(frames) for d in range(directions)]
+    else:
+        order = [(d, f) for d in range(directions) for f in range(frames)]
+    images: list[IndexedImage] = []
+    total = progress_total or (len(order) * (1 + blank_sub_slots))
+    for d, f in order:
+        images.append(_render_pose(context, posed[f], d))
+        for sub in range(blank_sub_slots):
+            if sub_posed is not None and sub < len(sub_posed):
+                images.append(_render_pose(context, sub_posed[sub][f], d))
+            else:
+                images.append(IndexedImage.blank(1, 1))
+        if progress is not None:
+            progress(progress_done + len(images), total)
+    return images
+
+
 def render_flat_ride(
     context: Context,
     meshes: list[Mesh],
     model: Model,
+    rider_model: Model,
     stall_type: str,
     progress: ProgressFn | None = None,
+    rider_sub_models: list[Model] | None = None,
 ) -> list[IndexedImage]:
     """Render an animated flat ride sprite set: the structure ring (one image per
-    view direction and animation pose, in the engine's ``direction * frames +
-    frame`` order), followed by blank rider overlays.
+    view direction and animation pose), followed by the rider ring.
 
-    The structure is a vehicle sprite anchored at the tile centre. Each pose
-    bakes one frame of the multi-frame ``model`` (the Blender-authored spin); the
-    camera direction is the world rotation ``VIEWS[d]``. The merry-go-round is
-    rotationally symmetric, so it stores a single direction (the engine folds the
-    camera rotation out and reuses the ring); the ferris wheel is not, so it
-    stores all four (``FerrisWheel.cpp`` reads ``base + direction * 8 + frame``).
+    The structure is a vehicle sprite anchored at the tile centre. Each pose bakes
+    one frame of the multi-frame ``model`` (the Blender-authored spin); the camera
+    direction is the world rotation ``VIEWS[d]``. The merry-go-round is rotationally
+    symmetric, so it stores a single direction (the engine folds the camera rotation
+    out and reuses the ring); the ferris wheel is not, so it stores all four
+    (``FerrisWheel.cpp`` reads ``base + direction * 8 + frame``).
 
-    ``spec.direction_minor`` selects the ring's image order: direction-major
-    (``image = direction * frames + frame``, the ferris/carousel layout) or
-    direction-minor (``image = frame * directions + direction``, the enterprise
-    layout, ``Enterprise.cpp`` reads ``base + (animationFrame << 2) + direction``).
-    The trailing rider slots are emitted blank, like the haunted house's ghosts,
-    so the engine never paints a stray peep image."""
+    Riders come in two shapes. Most rides trail a second ring -- a seated rider-pair
+    posed once per rider-strip frame (``rider_model``). The swinging ship instead
+    interleaves its riders into the sub-slots after each ship sprite (one
+    ``rider_sub_models`` model per bench row). Either may be absent, in which case
+    those slots are emitted blank, like the haunted house's ghosts, so the engine
+    never paints a stray peep image."""
     spec = FLAT_RIDE_SPECS[stall_type]
-    # Each pose's baked mesh is the same across directions, so bake once per pose.
-    posed = [combine_model_world(meshes, model, frame=f) for f in range(spec.frames)]
-    if spec.direction_minor:
-        order = [(d, f) for f in range(spec.frames) for d in range(spec.directions)]
+    rider_sub_models = rider_sub_models or []
+    structure_total = spec.structure_sprites
+    render_riders = spec.has_rider_ring and bool(rider_model.meshes)
+    render_sub_riders = spec.has_rider_sub_slots and any(m.meshes for m in rider_sub_models)
+    sub_models = rider_sub_models if render_sub_riders else None
+    # Progress counts the images actually rendered: the structure ring always (its
+    # sub-slots rendered only when riders fill them), the trailing rider ring only
+    # when the object carries rider geometry (else those slots are blanks).
+    total = structure_total + (spec.rider_slots if render_riders else 0)
+    images = _render_ring(
+        context, meshes, model, spec.directions, spec.frames, spec.direction_minor,
+        spec.blank_sub_slots, progress, progress_done=0, progress_total=total,
+        sub_models=sub_models,
+    )
+    if render_riders:
+        images += _render_ring(
+            context, meshes, rider_model, spec.rider_directions, spec.rider_frames,
+            spec.rider_direction_minor, 0, progress,
+            progress_done=structure_total, progress_total=total,
+        )
     else:
-        order = [(d, f) for d in range(spec.directions) for f in range(spec.frames)]
-    images: list[IndexedImage] = []
-    total = len(order)
-    for i, (d, f) in enumerate(order):
-        combined = posed[f]
-        if combined.faces.shape[0] == 0:
-            images.append(IndexedImage.blank(1, 1))
-        else:
-            images.append(render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[d]))
-        # Rides like the swinging ship interleave blank rider overlays after each
-        # rendered structure sprite (vs the trailing rider_slots).
-        images += [IndexedImage.blank(1, 1)] * spec.blank_sub_slots
-        if progress is not None:
-            progress(i + 1, total)
-    images += [IndexedImage.blank(1, 1)] * spec.rider_slots
+        images += [IndexedImage.blank(1, 1)] * spec.rider_slots
     return images
 
 

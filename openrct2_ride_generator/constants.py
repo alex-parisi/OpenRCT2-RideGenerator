@@ -249,6 +249,25 @@ class FlatRideSpec:
     # (plane, swing) structure sprite (SwingingShip.cpp `base + plane*9 + swing*18`,
     # rider = base + frameNum), so each rendered ship is followed by 8 blanks.
     blank_sub_slots: int = 0
+    # The *rider ring* the trailing `rider_slots` form: how the engine indexes the
+    # visible-rider overlays the object may provide (left blank when the object has
+    # no rider geometry). The riders are a separate seated rider-pair the engine
+    # draws over the structure, recoloured per rider by the peep's t-shirt colours
+    # (so the rider mesh uses Remap1/Remap2 for the two shirts). A ride wires its
+    # rider ring only once the renderer knows the engine's rider layout for it:
+    #   * merry_go_round (MerryGoRound.cpp `base + 32 + ((seatOffset + rotation) %
+    #     128 - 13)`, valid 0..67): one seat's pair on the front-visible arc, 68
+    #     poses, single view (the camera rotation folds out like the structure).
+    #   * ferris_wheel (FerrisWheel.cpp `base + 32 + direction*128 + frame`): one
+    #     gondola's pair orbiting the axle upright, 4 directions x 128 poses.
+    # rider_directions * rider_frames must equal rider_slots. Left 0 (the default)
+    # the rider_slots stay blank, as every ride shipped before visible riders.
+    rider_frames: int = 0  # rider-ring poses per direction (carousel 68, ferris 128)
+    rider_directions: int = 0  # rider-ring view directions (carousel 1, ferris 4)
+    # Rider-ring image order, like `direction_minor` for the structure. The
+    # carousel (single direction) and ferris (`base + 32 + direction*128 + frame`)
+    # are both direction-major.
+    rider_direction_minor: bool = False
 
     @property
     def structure_sprites(self) -> int:
@@ -256,18 +275,53 @@ class FlatRideSpec:
         frame), each trailed by `blank_sub_slots` interleaved blanks."""
         return self.directions * self.frames * (1 + self.blank_sub_slots)
 
+    @property
+    def has_rider_ring(self) -> bool:
+        """Whether the ride's visible riders are a *trailing* ring (carousel,
+        ferris, twist, enterprise, space rings), so the object may supply a rider
+        model posed once per rider-strip frame (else the rider_slots stay blank)."""
+        return self.rider_frames > 0 and self.rider_directions > 0
+
+    @property
+    def has_rider_sub_slots(self) -> bool:
+        """Whether the ride's visible riders are *interleaved* sub-slots after each
+        structure sprite (the swinging ship's per-bench rows), so the object may
+        supply one rider sub-model per sub-slot (else they stay blank)."""
+        return self.blank_sub_slots > 0
+
+    @property
+    def supports_riders(self) -> bool:
+        return self.has_rider_ring or self.has_rider_sub_slots
+
 
 FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
-    "merry_go_round": FlatRideSpec(frames=32, directions=1, rider_slots=68),
-    "ferris_wheel": FlatRideSpec(frames=8, directions=4, rider_slots=512),
+    # The carousel's 68 rider slots are one seat's pair on the front-visible arc
+    # (ring positions 13..80 of 128), reused for every view like the structure.
+    "merry_go_round": FlatRideSpec(
+        frames=32, directions=1, rider_slots=68, rider_frames=68, rider_directions=1,
+    ),
+    # The ferris wheel's 512 rider slots are one gondola's pair orbiting the axle
+    # upright, stored 4 directions x 128 poses (FerrisWheel.cpp base + 32 +
+    # direction*128 + frame).
+    "ferris_wheel": FlatRideSpec(
+        frames=8, directions=4, rider_slots=512, rider_frames=128, rider_directions=4,
+    ),
     # Twist.cpp: `base + (frameNum % 24)`, one symmetric 24-frame spin reused for
-    # every view direction (like the carousel), then 216 blank rider overlays.
-    "twist": FlatRideSpec(frames=24, directions=1, rider_slots=216, rotation_mode=1),
+    # every view direction (like the carousel), then 216 rider overlays
+    # (`base + 24 + (frameNum + seat*12) % 216`) -- one seat's pair at 216 rotation
+    # phases of the full turn, single view.
+    "twist": FlatRideSpec(
+        frames=24, directions=1, rider_slots=216, rotation_mode=1,
+        rider_frames=216, rider_directions=1,
+    ),
     # Enterprise.cpp: `base + (animationFrame << 2) + direction`, a tilted wheel
     # stored as 4 directions x 49 frames interleaved (direction is the fast index),
-    # then 48 blank rider overlays. Authored on a 4x4 footprint.
+    # then 48 rider overlays (`base + 196 + frameOffset1 + frameOffset2`). The pods
+    # are enclosed, so riders show only near the bottom: 3 animation sub-frames x 16
+    # folded angular positions, a single (camera-folded) view. Authored 4x4.
     "enterprise": FlatRideSpec(
         frames=49, directions=4, rider_slots=48, rotation_mode=2, direction_minor=True,
+        rider_frames=48, rider_directions=1,
     ),
     # MotionSimulator.cpp: `base + direction + flatRideAnimationFrame * 4`, the same
     # direction-minor 4-direction ring as the enterprise, but the engine cycles it
@@ -282,20 +336,25 @@ FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
     # ship is stored as 2 planes (the camera diagonals; directions 0/2 and 1/3
     # share a plane, the engine mirrors the swing sign for the back views) x 19
     # swing blocks (block 0 upright, 1-9 lean one way, 10-18 the other), each ship
-    # sprite trailed by 8 interleaved rider sprites (emitted blank). The A-frame
-    # supports are base-game graphics, so the object provides only the ship. The
-    # 19 poses are authored in swing-block order (upright, then each lean ramp);
-    # the add-on samples a keyframed swing into that order.
+    # sprite trailed by 8 *interleaved* rider sprites (`base + ship + 1 + row*2 +
+    # ((dir>>1)^col)`) -- the 8 bench rows of rider-pairs, which swing with the ship.
+    # These fill the sub-slots in place (not a trailing ring), so the object supplies
+    # rider sub-models, one per bench row. The A-frame supports are base-game
+    # graphics, so the object provides only the ship. The 19 poses are authored in
+    # swing-block order (upright, then each lean ramp); the add-on samples a
+    # keyframed swing into that order.
     "swinging_ship": FlatRideSpec(
         frames=19, directions=2, rider_slots=0, direction_minor=True, blank_sub_slots=8,
     ),
     # SpaceRings.cpp: `base + direction + flatRideAnimationFrame * 4`, the same
     # direction-minor 4-direction ring as the enterprise/simulator, here a single
     # ring's full 88-pose tumble. The object provides one ring (the engine spawns
-    # carsPerFlatRide=4 of them); 4*88 rider overlays follow at offset 352
-    # (`base + 352 + direction + frame*4`), emitted blank.
+    # carsPerFlatRide=4 of them); the 4*88 rider overlays at offset 352
+    # (`base + 352 + direction + frame*4`) are one rider tumbling *with* the ring,
+    # so the rider ring shares the structure's 4 directions x 88 poses.
     "space_rings": FlatRideSpec(
         frames=88, directions=4, rider_slots=352, direction_minor=True,
+        rider_frames=88, rider_directions=4, rider_direction_minor=True,
     ),
 }
 

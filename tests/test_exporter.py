@@ -420,6 +420,62 @@ def test_export_stall_to_flat_ride_includes_rider_blanks(tmp_path):
     assert sum(1 for e in ctx.events if e == "begin") == 32
 
 
+def test_export_stall_to_flat_ride_renders_riders(tmp_path):
+    # A carousel with a rider ring fills the 68 rider slots instead of blanking
+    # them: same image count, but every slot opens a render scene.
+    (tmp_path / "m.obj").write_text(_TRI)
+    mesh = load_mesh(tmp_path / "m.obj")
+    config = {
+        "id": "openrct2rg.ride.test",
+        "name": "Test Ride",
+        "description": "A test ride",
+        "ride_type": "merry_go_round",
+        "animation": {"frames": _flat_frames(32)},
+        "rider_animation": {
+            "frames": [
+                [{"mesh_index": 1, "position": [0, 0, 0],
+                  "orientation": [360.0 * i / 68, 0, 0]}]
+                for i in range(68)
+            ]
+        },
+    }
+    stall = build_stall(config, [mesh, mesh])
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "r.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "r.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    # 3 previews + 32 structure frames + 68 rendered rider overlays.
+    assert j["images"] == ["$LGX:images.dat[0..102]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 100
+
+
+def test_export_stall_to_swinging_ship_renders_bench_riders(tmp_path):
+    # The swinging ship's 8 interleaved bench sub-slots render instead of blanking,
+    # flowing the rider_sub_models through the full export.
+    (tmp_path / "m.obj").write_text(_TRI)
+    mesh = load_mesh(tmp_path / "m.obj")
+    config = {
+        "id": "openrct2rg.ride.test",
+        "name": "Test Ride",
+        "description": "A test ride",
+        "ride_type": "swinging_ship",
+        "animation": {"frames": _flat_frames(19)},
+        "rider_rows": [
+            {"frames": [[{"mesh_index": 1, "position": [0, 0, 0], "orientation": [0, a, 0]}]
+                        for a in range(19)]}
+            for _ in range(8)
+        ],
+    }
+    stall = build_stall(config, [mesh, mesh])
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "s.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "s.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    # 3 previews + 2 planes x 19 x (1 ship + 8 bench riders) = 3 + 342.
+    assert j["images"] == ["$LGX:images.dat[0..344]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 342
+
+
 def test_export_stall_to_ferris_wheel_four_directions(tmp_path):
     stall = _stall(
         tmp_path, ride_type="ferris_wheel", sells=None, model=None,
