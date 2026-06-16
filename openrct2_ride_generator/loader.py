@@ -100,10 +100,10 @@ def _load_sells(root: dict[str, Any], ride_type: str) -> list[str]:
 
 def _load_seats(root: dict[str, Any], ride_type: str) -> int:
     """Building rides only: the car's numSeats (= ride capacity)."""
+    if "seats" in root and STALL_TYPES[ride_type] is not StallKind.BUILDING:
+        raise LoadError(f'A "{ride_type}" ride cannot have a "seats" property')
     default = DEFAULT_NUM_SEATS.get(ride_type, 0)
     seats = optional_int(root, "seats", default)
-    if seats != default and STALL_TYPES[ride_type] is not StallKind.BUILDING:
-        raise LoadError(f'A "{ride_type}" ride cannot have a "seats" property')
     if STALL_TYPES[ride_type] is StallKind.BUILDING and not 1 <= seats <= 255:
         raise LoadError(f'Property "seats" must be 1-255, got {seats}')
     return seats

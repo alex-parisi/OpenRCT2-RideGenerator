@@ -132,6 +132,13 @@ def test_seats_on_stall_rejected(tmp_path):
         build_stall(_config(seats=8), _meshes(tmp_path))
 
 
+def test_seats_at_default_value_on_stall_still_rejected(tmp_path):
+    # A non-building ride may not declare "seats" at all; presence is rejected
+    # regardless of value, even when it equals the implicit default (0).
+    with pytest.raises(LoadError, match="seats"):
+        build_stall(_config(seats=0), _meshes(tmp_path))
+
+
 @pytest.mark.parametrize("seats", [0, 256])
 def test_building_seats_out_of_range_rejected(tmp_path, seats):
     with pytest.raises(LoadError, match="seats"):
