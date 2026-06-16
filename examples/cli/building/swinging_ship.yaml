@@ -1,0 +1,53 @@
+id: openrct2rg.ride.swinging_ship
+name: Swinging Ship
+description: A pirate boat that swings back and forth on a towering A-frame
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 1x5 flat ride (thrill). The boat is one vehicle sprite the engine
+# swings by cycling a ring of swing poses, so the ship is authored ONCE
+# (swinging_ship.obj, hanging from the OBJ origin = the swing axis) and the
+# animation below supplies one pose per swing block: 19 poses in the engine's
+# block order -- block 0 upright, blocks 1-9 leaning one way, 10-18 the other
+# (SwingingShip.cpp: base + plane*9 + swing*18). The engine stores 2 camera
+# planes and 8 (blank) rider slots per ship sprite. The A-frame supports are
+# base-game graphics, so the object provides only the ship (their alignment is
+# best checked in-game). In Blender you keyframe a natural back-and-forth swing
+# and the add-on samples it into these 19 block poses for you. Capacity defaults
+# to 16.
+ride_type: swinging_ship
+
+# The hull is Remap1 (main) and the bow/stern blocks are Remap2 (trim), so
+# painting stays on with main + trim presets.
+disable_painting: false
+car_colours:
+  - [bordeaux_red, yellow, black]
+  - [dark_blue, white, black]
+  - [black, bright_red, black]
+
+meshes:
+  - swinging_ship.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 5.778, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 11.556, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 17.333, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 23.111, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 28.889, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 34.667, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 40.444, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 46.222, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 52, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -5.778, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -11.556, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -17.333, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -23.111, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -28.889, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -34.667, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -40.444, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -46.222, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, -52, 0]}]

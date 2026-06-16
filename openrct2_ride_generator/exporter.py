@@ -15,11 +15,9 @@ from openrct2_x7_renderer.ray_trace import Context
 from openrct2_x7_renderer.types import IndexedImage
 
 from .constants import (
-    BUILDING_CAR_ENTRY,
-    BUILDING_TYPES_WITH_WAYPOINTS,
     FLAT_RIDE_SPECS,
-    LOADING_WAYPOINTS,
     PREVIEW_SLOTS,
+    RIDE_META,
     StallKind,
 )
 from .sprite_renderer import (
@@ -37,15 +35,12 @@ def _build_car_entry(stall: Stall) -> dict[str, Any]:
 
     Building rides never draw the car as a vehicle (the track painter reads
     base_image_id directly); animated flat rides draw the structure through the
-    vehicle path and cycle its rotation frames."""
-    if stall.kind is StallKind.FLAT_RIDE:
-        spec = FLAT_RIDE_SPECS[stall.stall_type]
-        car: dict[str, Any] = dict(spec.car)
-        car["loadingWaypoints"] = [[list(p) for p in wp] for wp in spec.waypoints]
-    else:
-        car = dict(BUILDING_CAR_ENTRY)
-        if stall.stall_type in BUILDING_TYPES_WITH_WAYPOINTS:
-            car["loadingWaypoints"] = [[list(p) for p in wp] for wp in LOADING_WAYPOINTS]
+    vehicle path and cycle its rotation frames. The fixed fields + loading
+    waypoints come from the ride type's cloned metadata."""
+    meta = RIDE_META[stall.stall_type]
+    car: dict[str, Any] = dict(meta.car)
+    if meta.waypoints is not None:
+        car["loadingWaypoints"] = [[list(p) for p in wp] for wp in meta.waypoints]
     car["numSeats"] = stall.num_seats
     # The colour window shows the trim/tertiary pickers only when the car
     # opts in; derive that from the remap regions the materials actually use.
@@ -59,19 +54,15 @@ def _build_car_entry(stall: Stall) -> dict[str, Any]:
 
 def build_stall_json(stall: Stall) -> dict[str, Any]:
     out = object_json_header_for(stall, "ride")
-    # Building rides and animated flat rides are "gentle" rides that carry their
-    # own car entry; shops and facilities are "stall" rides the engine fills in.
+    # Building rides and animated flat rides carry their own car entry (and the
+    # cloned ride-type metadata that goes with it); shops and facilities are
+    # "stall" rides the engine fills in.
     has_car = stall.kind in (StallKind.BUILDING, StallKind.FLAT_RIDE)
 
-    # Shops/facilities are "stall" rides; building rides are all "gentle"; flat
-    # rides carry the category from their spec (the carousel/ferris are gentle,
-    # the twist/enterprise are thrill).
-    if stall.kind is StallKind.FLAT_RIDE:
-        category = FLAT_RIDE_SPECS[stall.stall_type].category
-    elif has_car:
-        category = "gentle"
-    else:
-        category = "stall"
+    # The car-bearing rides take their build-menu category from the cloned
+    # metadata (carousel/ferris gentle, twist/enterprise/3d_cinema thrill, ...);
+    # shops and facilities are "stall" rides.
+    category = RIDE_META[stall.stall_type].category if has_car else "stall"
 
     properties: dict[str, Any] = {
         "type": stall.stall_type,
@@ -81,20 +72,19 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
     if has_car:
         # The whole-structure sprites overflow the build-menu tab at full size.
         properties["tabScale"] = 0.5
-        # Buildings always shelter guests; flat rides declare it per type.
-        if stall.kind is StallKind.FLAT_RIDE:
-            spec = FLAT_RIDE_SPECS[stall.stall_type]
-            if spec.has_shelter:
-                properties["hasShelter"] = True
-            if spec.rotation_mode is not None:
-                properties["rotationMode"] = spec.rotation_mode
-        else:
+        if RIDE_META[stall.stall_type].has_shelter:
             properties["hasShelter"] = True
+        # Flat rides that advance their structure frame via `rotationMode` declare it.
+        if stall.kind is StallKind.FLAT_RIDE:
+            rotation_mode = FLAT_RIDE_SPECS[stall.stall_type].rotation_mode
+            if rotation_mode is not None:
+                properties["rotationMode"] = rotation_mode
     if stall.sells:
         properties["sells"] = stall.sells[0] if len(stall.sells) == 1 else list(stall.sells)
     if stall.disable_painting:
         properties["disablePainting"] = True
-    properties["carsPerFlatRide"] = 1
+    # Most flat rides run a single car; space rings spawns four (its rings).
+    properties["carsPerFlatRide"] = RIDE_META[stall.stall_type].cars_per_flat_ride if has_car else 1
     # The engine synthesizes the whole car entry for shop/facility ride types,
     # so only the car-bearing rides emit a "cars" block.
     if has_car:

@@ -119,6 +119,19 @@ def test_build_stall_json_building_shape(tmp_path):
     assert j["strings"]["capacity"] == {"en-GB": "30 guests"}
 
 
+def test_build_stall_json_3d_cinema_is_thrill(tmp_path):
+    # The 3D cinema paints like the other 3x3 buildings but is filed under
+    # "thrill" (not gentle), and carries the shared building waypoint table.
+    j = build_stall_json(_stall(tmp_path, ride_type="3d_cinema", sells=None))
+    p = j["properties"]
+    assert p["type"] == "3d_cinema"
+    assert p["category"] == "thrill"
+    assert p["hasShelter"] is True
+    assert p["clearance"] == 128
+    assert p["cars"]["numSeats"] == 20
+    assert len(p["cars"]["loadingWaypoints"]) == 16
+
+
 def _flat_frames(n):
     return [
         [{"mesh_index": 0, "position": [0, 0, 0], "orientation": [360.0 * i / n, 0, 0]}]
@@ -224,6 +237,75 @@ def test_build_stall_json_enterprise_shape(tmp_path):
     assert car["seatsInPairs"] is False
     assert len(car["loadingWaypoints"]) == 64
     assert j["strings"]["capacity"] == {"en-GB": "16 guests"}
+
+
+def test_build_stall_json_motion_simulator_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="motion_simulator",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(35)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "motion_simulator"
+    assert p["category"] == "thrill"
+    # The pod is cycled via Status::simulatorOperating, so no rotationMode / mask.
+    assert "rotationMode" not in p
+    assert "hasShelter" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 8
+    assert "rotationFrameMask" not in car
+    assert len(car["loadingWaypoints"]) == 16
+    assert j["strings"]["capacity"] == {"en-GB": "8 guests"}
+
+
+def test_build_stall_json_swinging_ship_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="swinging_ship",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(19)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "swinging_ship"
+    assert p["category"] == "thrill"
+    # Swung via Status::swinging (the ride type), so no rotationMode / mask.
+    assert "rotationMode" not in p
+    assert "hasShelter" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 16
+    # The swinging ship boards via loadingPositions, not a waypoint table.
+    assert "loadingWaypoints" not in car
+    assert "loadingPositions" in car
+    assert j["strings"]["capacity"] == {"en-GB": "16 guests"}
+
+
+def test_build_stall_json_space_rings_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="space_rings",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(88)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "space_rings"
+    assert p["category"] == "gentle"
+    # The object provides one ring; the engine spawns four.
+    assert p["carsPerFlatRide"] == 4
+    assert "rotationMode" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 1
+    assert len(car["loadingWaypoints"]) == 16
+    assert j["strings"]["capacity"] == {"en-GB": "1 guests"}
 
 
 def test_build_stall_json_crooked_house_has_no_waypoints(tmp_path):

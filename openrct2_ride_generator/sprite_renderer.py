@@ -132,13 +132,16 @@ def render_flat_ride(
     else:
         order = [(d, f) for d in range(spec.directions) for f in range(spec.frames)]
     images: list[IndexedImage] = []
-    total = spec.structure_sprites
+    total = len(order)
     for i, (d, f) in enumerate(order):
         combined = posed[f]
         if combined.faces.shape[0] == 0:
             images.append(IndexedImage.blank(1, 1))
         else:
             images.append(render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[d]))
+        # Rides like the swinging ship interleave blank rider overlays after each
+        # rendered structure sprite (vs the trailing rider_slots).
+        images += [IndexedImage.blank(1, 1)] * spec.blank_sub_slots
         if progress is not None:
             progress(i + 1, total)
     images += [IndexedImage.blank(1, 1)] * spec.rider_slots

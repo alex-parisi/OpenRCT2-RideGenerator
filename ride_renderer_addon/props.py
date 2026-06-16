@@ -38,6 +38,7 @@ STALL_TYPE_ITEMS = [
     ("crooked_house", "Crooked House", "3x3 building ride, model centred on the middle tile"),
     ("haunted_house", "Haunted House", "3x3 building ride (ghost animation left blank)"),
     ("circus", "Circus", "3x3 building ride, model centred on the middle tile"),
+    ("3d_cinema", "3D Cinema", "3x3 building ride (thrill), model centred on the middle tile"),
     ("merry_go_round", "Merry-Go-Round",
      "Animated 3x3 flat ride: keyframe a 360-degree spin; the add-on samples it"),
     ("ferris_wheel", "Ferris Wheel",
@@ -46,6 +47,12 @@ STALL_TYPE_ITEMS = [
      "Animated 3x3 flat ride: keyframe a 360-degree spin (symmetric, like the carousel)"),
     ("enterprise", "Enterprise",
      "Animated 4x4 flat ride: keyframe the tilted wheel spin (4 directions)"),
+    ("motion_simulator", "Motion Simulator",
+     "Animated 2x2 flat ride: keyframe the pod's pitch/roll (4 directions, 35 poses)"),
+    ("swinging_ship", "Swinging Ship",
+     "Animated 1x5 flat ride: keyframe a back-and-forth swing; the add-on samples it"),
+    ("space_rings", "Space Rings",
+     "Animated 3x3 flat ride: keyframe one ring's 360-degree tumble (the engine spawns four)"),
 ]
 
 SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITEMS))

@@ -1,0 +1,27 @@
+id: openrct2rg.ride.three_d_cinema
+name: 3D Cinema
+description: A domed theatre screening a short 3D film for seated guests
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# 3x3 building flat ride (thrill category, unlike the gentle circus/houses): 4
+# view sprites of the whole structure, anchored at the middle tile. Capacity
+# (numSeats) defaults per type; 3d_cinema = 20. The example reuses the big-top
+# tent mesh as a placeholder dome -- author a real cinema dome in its place.
+ride_type: 3d_cinema
+
+# Walls are Remap1, roof is Remap2, so painting stays enabled and presets offer
+# main + first additional colours (from C3D).
+disable_painting: false
+car_colours:
+  - [grey, dark_blue, black]
+  - [white, bright_red, black]
+  - [light_blue, bordeaux_red, black]
+
+meshes:
+  - circus_tent.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

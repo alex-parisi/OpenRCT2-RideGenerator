@@ -1,0 +1,67 @@
+id: openrct2rg.ride.motion_simulator
+name: Motion Simulator
+description: An enclosed pod that pitches and rolls through a simulated ride
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 2x2 flat ride (thrill). The tilting pod is one vehicle sprite the
+# engine cycles through a hardcoded buck-and-roll sequence (Status::
+# simulatorOperating), so the structure is authored ONCE (motion_simulator.obj,
+# centred on the OBJ origin) and the animation below supplies one pose per frame:
+# 35 poses, frames 0-3 the restraint load stages (held level) and 4-34 the tilt
+# motion. The engine stores 4 view directions x 35 poses (MotionSimulator.cpp:
+# base + direction + frame*4). The boarding stairs are base-game graphics, so the
+# object provides only the pod (their alignment is best checked in-game). In
+# Blender you keyframe the pitch/roll and the add-on samples the 35 poses for
+# you. Capacity (numSeats) defaults to 8.
+ride_type: motion_simulator
+
+# The cabin is Remap1 (main colour); painting stays on with a main + trim preset.
+disable_painting: false
+car_colours:
+  - [bright_red, grey, black]
+  - [light_blue, white, black]
+  - [yellow, dark_blue, black]
+
+meshes:
+  - motion_simulator.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 10.58, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 17.119, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 17.119, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 10.58, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -10.58, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -17.119, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -17.119, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -10.58, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 8.817]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 14.266]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 14.266]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 8.817]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 7.406, 6.172]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 11.983, 9.986]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 11.983, 9.986]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 7.406, 6.172]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -0, 0]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -7.406, 6.172]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -11.983, 9.986]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -11.983, 9.986]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -7.406, 6.172]}]
+    - [{mesh_index: 0, position: [0, 1.7, 0], orientation: [0, -0, 0]}]

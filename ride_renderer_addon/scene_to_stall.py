@@ -107,6 +107,83 @@ def _flat_ride_animation(context, scene) -> tuple[list[Mesh], list[list[dict]]]:
     return meshes, poses
 
 
+_SWING_BLOCKS = 19  # FLAT_RIDE_SPECS["swinging_ship"].frames
+
+
+def _swing_scalars(orientations: list[list[float]]) -> list[float]:
+    """Per-sample signed swing angle: the horizontal orientation component (Z or
+    X -- indices 1/2 of the renderer's [Y, Z, X] triple, never the vertical yaw)
+    that varies most across the keyframed swing."""
+    axis, widest = 1, -1.0
+    for candidate in (1, 2):
+        vals = [o[candidate] for o in orientations]
+        spread = max(vals) - min(vals)
+        if spread > widest:
+            axis, widest = candidate, spread
+    return [o[axis] for o in orientations]
+
+
+def _swing_block_targets(amplitude: float) -> list[float]:
+    """The 19 swing-block angles in SwingingShip.cpp image order: block 0 upright,
+    blocks 1-9 one lean ramp, blocks 10-18 the other."""
+    targets = [0.0]
+    targets += [amplitude * r / 9 for r in range(1, 10)]
+    targets += [-amplitude * r / 9 for r in range(1, 10)]
+    return targets
+
+
+def _swinging_ship_animation(context, scene) -> tuple[list[Mesh], list[list[dict]]]:
+    """Sample a keyframed swing and remap it into the 19 swing-block poses.
+
+    Unlike a steady spin (advanced +1 per tick, so sprite order == keyframe time
+    order), the swinging ship stores its sprites in swing-block order: block 0
+    upright, then a lean ramp each way. So the author just keyframes a natural
+    back-and-forth swing; we sample it densely, measure each pose's swing angle
+    (the dominant horizontal rotation), take the amplitude reached, and slot the
+    sampled pose nearest each block's target angle into the engine's order.
+    """
+    f_start, f_end = scene.frame_start, scene.frame_end
+    dense = list(range(f_start, f_end + 1)) if f_end > f_start else [f_start]
+
+    orig_frame = scene.frame_current
+    meshes: list[Mesh] = []
+    samples: list[tuple[list[float], list[dict]]] = []  # (first part's orientation, full pose)
+    try:
+        scene.frame_set(dense[0])
+        dg = context.evaluated_depsgraph_get()
+        rigid: list = []
+        for obj in geometry_objects(scene.objects, "vgr_object"):
+            mesh = _extract(obj, dg)
+            if mesh is None:
+                continue
+            idx = len(meshes)
+            meshes.append(mesh)
+            rigid.append((obj, idx, rest_rotation_inverse(obj.evaluated_get(dg).matrix_world)))
+        for frame in dense:
+            scene.frame_set(frame)
+            dg = context.evaluated_depsgraph_get()
+            entries: list[dict] = []
+            first_orient = [0.0, 0.0, 0.0]
+            for obj, idx, rest_inv in rigid:
+                position, orientation = rigid_pose(obj.evaluated_get(dg).matrix_world, rest_inv)
+                if not entries:
+                    first_orient = orientation
+                entries.append(
+                    {"mesh_index": idx, "position": position, "orientation": orientation}
+                )
+            samples.append((first_orient, entries))
+    finally:
+        scene.frame_set(orig_frame)
+
+    scalars = _swing_scalars([orient for orient, _ in samples])
+    amplitude = max((abs(s) for s in scalars), default=0.0)
+    poses: list[list[dict]] = []
+    for target in _swing_block_targets(amplitude):
+        best = min(range(len(samples)), key=lambda i, t=target: abs(scalars[i] - t))
+        poses.append(samples[best][1])
+    return meshes, poses
+
+
 def build_stall_from_scene(context) -> Stall:
     """Read the scene's settings + geometry and build a validated Stall."""
     scene = context.scene
@@ -121,7 +198,12 @@ def build_stall_from_scene(context) -> Stall:
     # Animated flat rides are posed by their keyframed spin; every other kind is
     # a single static pose.
     if kind is StallKind.FLAT_RIDE:
-        meshes, frames = _flat_ride_animation(context, scene)
+        # The swinging ship's sprites are in swing-block order, not keyframe-time
+        # order, so it samples + remaps the swing rather than evenly sampling a spin.
+        if ss.stall_type == "swinging_ship":
+            meshes, frames = _swinging_ship_animation(context, scene)
+        else:
+            meshes, frames = _flat_ride_animation(context, scene)
         model = None
     else:
         meshes, model = _static_model(scene, depsgraph, kind)

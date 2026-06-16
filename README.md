@@ -53,17 +53,22 @@ The config format is JSON or YAML (chosen by file extension). Relative
 | `crooked_house`     | building  | 4            |
 | `haunted_house`     | building  | 4 (+72)      |
 | `circus`            | building  | 4            |
+| `3d_cinema`         | building  | 4            |
 | `merry_go_round`    | flat ride | 32 (+68)     |
 | `ferris_wheel`      | flat ride | 32 (+512)    |
 | `twist`             | flat ride | 24 (+216)    |
 | `enterprise`        | flat ride | 196 (+48)    |
+| `motion_simulator`  | flat ride | 140          |
+| `swinging_ship`     | flat ride | 342          |
+| `space_rings`       | flat ride | 352 (+352)   |
 
 Building rides are the 3x3 flat rides whose whole structure is one sprite per
 view direction. The model is authored **centred on the middle tile** (the 3x3
 footprint allows up to 3 tiles across) and the `seats` property sets the
-ride's capacity (defaults per type: 5 / 15 / 30). The haunted house's 72
-ghost-animation overlay slots are emitted blank, so the ride operates
-normally but shows no popping ghost.
+ride's capacity (defaults per type: 5 / 15 / 30 / 20). The 3D cinema paints
+like the others but is filed under the **thrill** category rather than gentle.
+The haunted house's 72 ghost-animation overlay slots are emitted blank, so the
+ride operates normally but shows no popping ghost.
 
 Animated flat rides are rides whose structure is a **vehicle sprite the engine
 spins** by cycling a ring of rotation frames. The structure is authored once and
@@ -94,10 +99,30 @@ trailing rider slots are emitted blank (like the haunted house's ghosts), and
   (`base + (frame << 2) + direction`); keyframe a full turn about the axle. The
   truss supports are base-game graphics, so the object provides only the wheel.
   (+48 rider slots, default 16 seats.)
+- **`motion_simulator`** — a 2x2 enclosed pod that pitches and rolls (a thrill
+  ride). The engine cycles the pod through a fixed buck-and-roll sequence rather
+  than a steady spin, storing **4 directions × 35 poses interleaved**
+  (`base + direction + frame*4`); keyframe the pitch/roll (frames 0–3 are the
+  level restraint-load stages, 4–34 the motion). The boarding stairs are
+  base-game graphics, so the object provides only the pod. (No rider slots,
+  default 8 seats.)
+- **`swinging_ship`** — a 1x5 pirate boat that swings on an A-frame (a thrill
+  ride). The engine stores **2 camera planes × 19 swing blocks** (block 0
+  upright, 1–9 leaning one way, 10–18 the other; `base + plane*9 + swing*18`),
+  each ship sprite trailed by 8 (blank) rider slots. The A-frame supports are
+  base-game graphics, so the object provides only the ship. In Blender you
+  keyframe a natural back-and-forth swing and the add-on samples it into the 19
+  block poses; a CLI config lists the 19 poses in block order. (Default 16 seats.)
+- **`space_rings`** — a 3x3 ride of tumbling rings (a gentle ride). The object
+  provides **one** ring (4 directions × 88 spin poses, `base + direction +
+  frame*4`); the engine spawns four of them across the footprint
+  (`carsPerFlatRide` 4). Keyframe one ring's full tumble about its axle; 4×88
+  blank rider overlays follow. (1 seat per ring.)
 
-> The example meshes are placeholders sized to render cleanly; a custom ferris
-> wheel's axle must line up with the vanilla A-frame supports, which is best
-> checked in-game.
+> The example meshes are placeholders sized to render cleanly; rides that reuse
+> base-game graphics — the ferris wheel's A-frame axle, the motion simulator's
+> boarding stairs — must line up with those sprites, which is best checked
+> in-game.
 
 ### CLI Quickstart
 

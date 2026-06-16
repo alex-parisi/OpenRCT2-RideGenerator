@@ -5,9 +5,12 @@ Shared rendering constants live in openrct2_x7_renderer.constants.
 
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Any
 
 from openrct2_object_common.colours import COLOR_NAMES as COLOR_NAMES  # noqa: F401
 from openrct2_x7_renderer.constants import TILE_SIZE as TILE_SIZE  # noqa: F401
+
+from ._ride_metadata import RIDE_METADATA
 
 
 class StallKind(Enum):
@@ -39,10 +42,14 @@ STALL_TYPES: dict[str, StallKind] = {
     "crooked_house": StallKind.BUILDING,
     "haunted_house": StallKind.BUILDING,
     "circus": StallKind.BUILDING,
+    "3d_cinema": StallKind.BUILDING,
     "merry_go_round": StallKind.FLAT_RIDE,
     "ferris_wheel": StallKind.FLAT_RIDE,
     "twist": StallKind.FLAT_RIDE,
     "enterprise": StallKind.FLAT_RIDE,
+    "motion_simulator": StallKind.FLAT_RIDE,
+    "swinging_ship": StallKind.FLAT_RIDE,
+    "space_rings": StallKind.FLAT_RIDE,
 }
 
 # Shop-kind ride types whose object may carry a `sells` shop item. The cash
@@ -67,10 +74,14 @@ DEFAULT_CLEARANCE: dict[str, int] = {
     "crooked_house": 96,
     "haunted_house": 160,
     "circus": 128,
+    "3d_cinema": 128,
     "merry_go_round": 64,
     "ferris_wheel": 176,
     "twist": 64,
     "enterprise": 160,
+    "motion_simulator": 64,
+    "swinging_ship": 112,
+    "space_rings": 48,
 }
 
 # OpenRCT2's ShopItemLookupTable (object/RideObject.cpp): the valid `sells`
@@ -145,59 +156,55 @@ BUILDING_FOOTPRINT_TILES = 3
 HAUNTED_HOUSE_FRAMES_PER_DIRECTION = 18
 HAUNTED_HOUSE_OVERLAY_SPRITES = 4 * HAUNTED_HOUSE_FRAMES_PER_DIRECTION
 
-# Default car numSeats (= ride capacity), from the bundled RCT2 objects
-# (CHBUILD / HHBUILD / CIRCUS1).
-DEFAULT_NUM_SEATS: dict[str, int] = {
-    "crooked_house": 5,
-    "haunted_house": 15,
-    "circus": 30,
-    "merry_go_round": 16,
-    "ferris_wheel": 32,
-    "twist": 18,
-    "enterprise": 16,
+# ── Per-ride-type metadata (cloned from the vanilla RCT2 objects) ──────────────
+# The car-bearing ride types -- the 3x3 building rides and the animated flat
+# rides -- clone a vanilla ride type, so their gameplay / packaging metadata
+# matches that object: the fixed car-entry fields, the peep loading-waypoint
+# table, the default capacity, the build-menu category and the shelter flag. The
+# data is extracted from OpenRCT2's decoded RCT2 objects by
+# scripts/extract_ride_metadata.py into the generated _ride_metadata module (so
+# adding a ride type is a data refresh, not a hand-transcription of 60-entry
+# waypoint arrays). The exporter fills in the per-object dynamic fields it omits:
+# numSeats (capacity, overridable) and the remap-derived colour flags.
+
+
+@dataclass(frozen=True)
+class RideMeta:
+    """Gameplay / packaging metadata for one car-bearing ride type."""
+
+    category: str  # build-menu category ("gentle" / "thrill")
+    has_shelter: bool  # the ride's `hasShelter` property
+    default_seats: int  # car numSeats (= ride capacity) default
+    cars_per_flat_ride: int  # `carsPerFlatRide` (rings/cars the engine spawns; 4 for space rings)
+    car: dict[str, Any]  # fixed car-entry fields (sans numSeats / colour flags)
+    waypoints: list[list[list[int]]] | None  # car loadingWaypoints, or None
+
+
+# Crooked-house guests are swallowed straight into the building, so -- unlike the
+# other 3x3 buildings -- its car emits no loading waypoints, even though the
+# vanilla CHBUILD object carries the shared table. Suppress it here to match.
+_NO_WAYPOINTS = frozenset({"crooked_house"})
+
+
+def _ride_meta(ride_type: str, data: dict[str, Any]) -> RideMeta:
+    raw_waypoints = data["waypoints"]
+    waypoints = None if ride_type in _NO_WAYPOINTS else raw_waypoints
+    return RideMeta(
+        category=data["category"],
+        has_shelter=data["has_shelter"],
+        default_seats=data["default_seats"],
+        cars_per_flat_ride=data["cars_per_flat_ride"],
+        car=data["car"],
+        waypoints=waypoints,
+    )
+
+
+RIDE_META: dict[str, RideMeta] = {
+    ride_type: _ride_meta(ride_type, data) for ride_type, data in RIDE_METADATA.items()
 }
 
-# The fixed car entry the bundled RCT2 building rides share. The car is never
-# drawn as a vehicle (the track painter reads base_image_id directly) and
-# recalculateSpriteBounds trues up the nominal sprite bounds, so these values
-# are emitted verbatim.
-BUILDING_CAR_ENTRY: dict[str, object] = {
-    "spacing": 139456,
-    "mass": 3000,
-    "seatsInPairs": False,
-    "spriteWidth": 55,
-    "spriteHeightNegative": 150,
-    "spriteHeightPositive": 28,
-    "carVisual": 1,
-    "drawOrder": 6,
-    "frames": {"flat": True},
-    "recalculateSpriteBounds": True,
-    "numSegments": 0,
-}
-
-# Crooked house guests just walk in; haunted house and circus share this
-# 16-entry loading-waypoint table (3 [x, y] stops per station direction
-# variant), copied from HHBUILD / CIRCUS1.
-BUILDING_TYPES_WITH_WAYPOINTS = frozenset({"haunted_house", "circus"})
-
-LOADING_WAYPOINTS: list[list[list[int]]] = [
-    [[40, 40], [-40, 40], [-36, 0]],
-    [[-40, -40], [-36, 0], [-36, 0]],
-    [[-36, 0], [-36, 0], [-36, 0]],
-    [[-40, 40], [-36, 0], [-36, 0]],
-    [[40, 40], [0, 36], [0, 36]],
-    [[40, -40], [40, 40], [0, 36]],
-    [[-40, 40], [0, 36], [0, 36]],
-    [[0, 36], [0, 36], [0, 36]],
-    [[36, 0], [36, 0], [36, 0]],
-    [[40, -40], [36, 0], [36, 0]],
-    [[-40, -40], [40, -40], [36, 0]],
-    [[40, 40], [36, 0], [36, 0]],
-    [[40, -40], [0, -36], [0, -36]],
-    [[0, -36], [0, -36], [0, -36]],
-    [[-40, -40], [0, -36], [0, -36]],
-    [[-40, 40], [-40, -40], [0, -36]],
-]
+# Default car numSeats (= ride capacity) per car-bearing ride type.
+DEFAULT_NUM_SEATS: dict[str, int] = {t: m.default_seats for t, m in RIDE_META.items()}
 
 # ── Animated flat rides ───────────────────────────────────────────────────────
 # An animated flat ride draws its structure as a *vehicle* sprite the engine
@@ -220,15 +227,14 @@ LOADING_WAYPOINTS: list[list[list[int]]] = [
 
 @dataclass(frozen=True)
 class FlatRideSpec:
-    """Engine sprite layout + fixed car-entry fields for an animated flat ride."""
+    """Engine sprite layout for an animated flat ride. The gameplay / packaging
+    metadata (car entry, waypoints, capacity, category, shelter) lives in
+    RIDE_META, cloned from the vanilla object; this captures only what the
+    painter dictates -- the structure ring's shape and image order."""
 
     frames: int  # authored animation poses per direction (carousel/ferris: rotationFrameMask + 1)
     directions: int  # distinct view directions stored in the structure ring
     rider_slots: int  # trailing blank peep overlays after the structure frames
-    has_shelter: bool  # the ride's `hasShelter` property
-    waypoints: list[list[list[int]]]  # car loadingWaypoints
-    car: dict[str, object]  # fixed car-entry fields (sans numSeats / colour flags)
-    category: str = "gentle"  # the ride's build-menu category ("gentle" / "thrill")
     # The properties-level `rotationMode` (how the engine advances the structure's
     # animation frame). The carousel/ferris use a plain rotationFrameMask instead and
     # leave this unset; the twist (1) and enterprise (2) set it.
@@ -238,332 +244,58 @@ class FlatRideSpec:
     # True (enterprise): direction-minor, `image = frame * directions + direction`
     # (Enterprise.cpp `base + (animationFrame << 2) + direction`).
     direction_minor: bool = False
+    # Blank peep overlays emitted after *each* rendered structure image (vs the
+    # trailing `rider_slots`). The swinging ship interleaves 8 rider sprites per
+    # (plane, swing) structure sprite (SwingingShip.cpp `base + plane*9 + swing*18`,
+    # rider = base + frameNum), so each rendered ship is followed by 8 blanks.
+    blank_sub_slots: int = 0
 
     @property
     def structure_sprites(self) -> int:
-        """Rendered structure images: one per (direction, frame)."""
-        return self.directions * self.frames
+        """Structure images the object provides: one rendered image per (direction,
+        frame), each trailed by `blank_sub_slots` interleaved blanks."""
+        return self.directions * self.frames * (1 + self.blank_sub_slots)
 
-
-# The merry-go-round's 64-entry loading-waypoint table (3 [x, y] stops per
-# station direction variant), copied verbatim from MGR1.
-MERRY_GO_ROUND_WAYPOINTS: list[list[list[int]]] = [
-    [[43, 43], [-43, 43], [-42, 3]],
-    [[-43, -43], [-42, 3], [-42, 3]],
-    [[-42, 3], [-42, 3], [-42, 3]],
-    [[-43, 43], [-42, 3], [-42, 3]],
-    [[43, -43], [-43, -43], [-42, -3]],
-    [[-43, -43], [-42, -3], [-42, -3]],
-    [[-42, -3], [-42, -3], [-42, -3]],
-    [[-43, 43], [-42, -3], [-42, -3]],
-    [[43, 43], [3, 42], [3, 42]],
-    [[43, -43], [43, 43], [3, 42]],
-    [[-43, 43], [3, 42], [3, 42]],
-    [[3, 42], [3, 42], [3, 42]],
-    [[43, 43], [-3, 42], [-3, 42]],
-    [[-43, -43], [-43, 43], [-3, 42]],
-    [[-43, 43], [-3, 42], [-3, 42]],
-    [[-3, 42], [-3, 42], [-3, 42]],
-    [[42, -3], [42, -3], [42, -3]],
-    [[43, -43], [42, -3], [42, -3]],
-    [[-43, -43], [43, -43], [42, -3]],
-    [[43, 43], [42, -3], [42, -3]],
-    [[42, 3], [42, 3], [42, 3]],
-    [[43, -43], [42, 3], [42, 3]],
-    [[-43, 43], [43, 43], [42, 3]],
-    [[43, 43], [42, 3], [42, 3]],
-    [[43, -43], [-3, -42], [-3, -42]],
-    [[-3, -42], [-3, -42], [-3, -42]],
-    [[-43, -43], [-3, -42], [-3, -42]],
-    [[-43, 43], [-43, -43], [-3, -42]],
-    [[43, -43], [3, -42], [3, -42]],
-    [[3, -42], [3, -42], [3, -42]],
-    [[-43, -43], [3, -42], [3, -42]],
-    [[43, 43], [43, -43], [3, -42]],
-    [[43, 43], [-43, 43], [-33, 31]],
-    [[-43, -43], [-43, 43], [-33, 31]],
-    [[-43, 43], [-43, 43], [-33, 31]],
-    [[-43, 43], [-43, 43], [-33, 31]],
-    [[43, 43], [-43, 43], [-31, 33]],
-    [[-43, -43], [-43, 43], [-31, 33]],
-    [[-43, 43], [-43, 43], [-31, 33]],
-    [[-43, 43], [-43, 43], [-31, 33]],
-    [[43, 43], [43, 43], [33, 31]],
-    [[43, -43], [43, 43], [33, 31]],
-    [[-43, 43], [43, 43], [33, 31]],
-    [[43, 43], [43, 43], [33, 31]],
-    [[43, 43], [43, 43], [31, 33]],
-    [[43, -43], [43, 43], [31, 33]],
-    [[-43, 43], [43, 43], [31, 33]],
-    [[43, 43], [43, 43], [31, 33]],
-    [[43, -43], [43, -43], [33, -31]],
-    [[43, -43], [43, -43], [33, -31]],
-    [[-43, -43], [43, -43], [33, -31]],
-    [[43, 43], [43, -43], [33, -31]],
-    [[43, -43], [43, -43], [31, -33]],
-    [[43, -43], [43, -43], [31, -33]],
-    [[-43, -43], [43, -43], [31, -33]],
-    [[43, 43], [43, -43], [31, -33]],
-    [[43, -43], [-43, -43], [-33, -31]],
-    [[-43, -43], [-43, -43], [-33, -31]],
-    [[-43, -43], [-43, -43], [-33, -31]],
-    [[-43, 43], [-43, -43], [-33, -31]],
-    [[43, -43], [-43, -43], [-31, -33]],
-    [[-43, -43], [-43, -43], [-31, -33]],
-    [[-43, -43], [-43, -43], [-31, -33]],
-    [[-43, 43], [-43, -43], [-31, -33]],
-]
-
-# The ferris wheel's 16-entry loading-waypoint table, copied verbatim from FWH1.
-FERRIS_WHEEL_WAYPOINTS: list[list[list[int]]] = [
-    [[44, -12], [-16, -12], [-16, -12]],
-    [[-16, -12], [-16, -12], [-16, -12]],
-    [[-76, -12], [-16, -12], [-16, -12]],
-    [[-16, 12], [-16, 12], [-16, 12]],
-    [[12, 16], [12, 16], [12, 16]],
-    [[12, -44], [12, 16], [12, 16]],
-    [[-12, 16], [-12, 16], [-12, 16]],
-    [[12, 76], [12, 16], [12, 16]],
-    [[76, -12], [16, -12], [16, -12]],
-    [[16, -12], [16, -12], [16, -12]],
-    [[-44, -12], [16, -12], [16, -12]],
-    [[16, 12], [16, 12], [16, 12]],
-    [[12, -16], [12, -16], [12, -16]],
-    [[12, -76], [12, -16], [12, -16]],
-    [[-12, -16], [-12, -16], [-12, -16]],
-    [[-12, 44], [-12, -16], [-12, -16]],
-]
-
-# The twist's 72-entry loading-waypoint table, copied verbatim from TWIST1.
-TWIST_WAYPOINTS: list[list[list[int]]] = [
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [43, 43], [33, 33]],
-    [[-43, 43], [43, 43], [33, 33]],
-    [[43, 43], [43, 43], [33, 33]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [3, -42], [0, -42]],
-    [[3, -42], [3, -42], [0, -42]],
-    [[-43, -43], [3, -42], [0, -42]],
-    [[43, 43], [43, -43], [0, -42]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-    [[43, -43], [-43, -43], [-42, 0]],
-    [[-43, -43], [-42, -3], [-42, 0]],
-    [[-42, -3], [-42, -3], [-42, 0]],
-    [[-43, 43], [-42, -3], [-42, 0]],
-]
-
-# The enterprise's 64-entry loading-waypoint table, copied verbatim from ENTERP.
-ENTERPRISE_WAYPOINTS: list[list[list[int]]] = [
-    [[53, 0], [53, 0], [53, 0]],
-    [[54, -54], [53, 0], [53, 0]],
-    [[-54, -54], [54, -54], [53, 0]],
-    [[54, 54], [53, 0], [53, 0]],
-    [[54, -54], [0, -53], [0, -53]],
-    [[0, -53], [0, -53], [0, -53]],
-    [[-54, -54], [0, -53], [0, -53]],
-    [[54, 54], [54, -54], [0, -53]],
-    [[54, 54], [-54, 54], [-53, 0]],
-    [[-54, -54], [-53, 0], [-53, 0]],
-    [[-53, 0], [-53, 0], [-53, 0]],
-    [[-54, 54], [-53, 0], [-53, 0]],
-    [[54, 54], [0, 53], [0, 53]],
-    [[54, -54], [54, 54], [0, 53]],
-    [[-54, 54], [0, 53], [0, 53]],
-    [[0, 53], [0, 53], [0, 53]],
-    [[53, -10], [53, -10], [53, -10]],
-    [[54, -54], [53, -10], [53, -10]],
-    [[-54, -54], [54, -54], [53, -10]],
-    [[54, 54], [53, -10], [53, -10]],
-    [[54, -54], [-10, -53], [-10, -53]],
-    [[-10, -53], [-10, -53], [-10, -53]],
-    [[-54, -54], [-10, -53], [-10, -53]],
-    [[54, 54], [54, -54], [-9, -53]],
-    [[54, 54], [-54, 54], [-53, 10]],
-    [[-54, -54], [-53, 10], [-53, 10]],
-    [[-53, 10], [-53, 10], [-53, 10]],
-    [[-54, 54], [-53, 10], [-53, 10]],
-    [[54, 54], [10, 53], [10, 53]],
-    [[54, -54], [54, 54], [10, 53]],
-    [[-54, 54], [10, 53], [10, 53]],
-    [[10, 53], [10, 53], [10, 53]],
-    [[54, -54], [54, -54], [44, -44]],
-    [[54, -54], [54, -54], [44, -44]],
-    [[-54, -54], [54, -54], [44, -44]],
-    [[54, 54], [54, -54], [44, -44]],
-    [[54, -54], [-54, -54], [-44, -44]],
-    [[-54, -54], [-54, -54], [-44, -44]],
-    [[-54, -54], [-54, -54], [-44, -44]],
-    [[-54, 54], [-54, -54], [-44, -44]],
-    [[54, 54], [-54, 54], [-44, 44]],
-    [[-54, -54], [-54, 54], [-44, 44]],
-    [[-54, 54], [-54, 54], [-44, 44]],
-    [[-54, 54], [-54, 54], [-44, 44]],
-    [[54, 54], [54, 54], [44, 44]],
-    [[54, -54], [54, 54], [44, 44]],
-    [[-54, 54], [54, 54], [44, 44]],
-    [[54, 54], [54, 54], [44, 44]],
-    [[54, -54], [54, -54], [44, -44]],
-    [[54, -54], [54, -54], [44, -44]],
-    [[-54, -54], [54, -54], [44, -44]],
-    [[54, 54], [54, -54], [44, -44]],
-    [[54, -54], [-54, -54], [-44, -44]],
-    [[-54, -54], [-54, -54], [-44, -44]],
-    [[-54, -54], [-54, -54], [-44, -44]],
-    [[-54, 54], [-54, -54], [-44, -44]],
-    [[54, 54], [-54, 54], [-44, 44]],
-    [[-54, -54], [-54, 54], [-44, 44]],
-    [[-54, 54], [-54, 54], [-44, 44]],
-    [[-54, 54], [-54, 54], [-44, 44]],
-    [[54, 54], [54, 54], [44, 44]],
-    [[54, -54], [54, 54], [44, 44]],
-    [[-54, 54], [54, 54], [44, 44]],
-    [[54, 54], [54, 54], [44, 44]],
-]
-
-# Fixed car-entry fields per ride (numSeats and the remap-derived colour flags
-# are added by the exporter). The car is never drawn as a normal vehicle, and
-# recalculateSpriteBounds trues up the nominal bounds, so these are emitted
-# verbatim. `rotationFrameMask` = frames - 1.
-_MGR_CAR: dict[str, object] = {
-    "rotationFrameMask": 31,
-    "spacing": 139456,
-    "mass": 200,
-    "tabOffset": -24,
-    "spriteWidth": 55,
-    "spriteHeightNegative": 72,
-    "spriteHeightPositive": 28,
-    "carVisual": 1,
-    "drawOrder": 6,
-    "frames": {"flat": True},
-    "recalculateSpriteBounds": True,
-    "numSegments": 4,
-}
-_FWH_CAR: dict[str, object] = {
-    "rotationFrameMask": 7,
-    "spacing": 139456,
-    "mass": 3000,
-    "spriteWidth": 87,
-    "spriteHeightNegative": 170,
-    "spriteHeightPositive": 37,
-    "carVisual": 1,
-    "drawOrder": 6,
-    "frames": {"flat": True},
-    "recalculateSpriteBounds": True,
-    "numSegments": 0,
-}
-# The twist (Twist.cpp) and enterprise (Enterprise.cpp) advance their structure
-# frame via the properties-level `rotationMode`, so the car carries no
-# `rotationFrameMask`; the spec's `frames` drives sampling/rendering. Copied
-# verbatim from TWIST1 / ENTERP.
-_TWIST_CAR: dict[str, object] = {
-    "spacing": 139456,
-    "mass": 200,
-    "tabOffset": -12,
-    "spriteWidth": 65,
-    "spriteHeightNegative": 58,
-    "spriteHeightPositive": 36,
-    "carVisual": 1,
-    "drawOrder": 6,
-    "frames": {"flat": True},
-    "recalculateSpriteBounds": True,
-    "numSegments": 4,
-}
-_ENTERPRISE_CAR: dict[str, object] = {
-    "spacing": 139456,
-    "mass": 200,
-    "tabOffset": -24,
-    "seatsInPairs": False,
-    "spriteWidth": 98,
-    "spriteHeightNegative": 128,
-    "spriteHeightPositive": 32,
-    "carVisual": 1,
-    "drawOrder": 6,
-    "frames": {"flat": True},
-    "recalculateSpriteBounds": True,
-    "numSegments": 8,
-}
 
 FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
-    "merry_go_round": FlatRideSpec(
-        frames=32, directions=1, rider_slots=68, has_shelter=True,
-        waypoints=MERRY_GO_ROUND_WAYPOINTS, car=_MGR_CAR,
-    ),
-    "ferris_wheel": FlatRideSpec(
-        frames=8, directions=4, rider_slots=512, has_shelter=False,
-        waypoints=FERRIS_WHEEL_WAYPOINTS, car=_FWH_CAR,
-    ),
+    "merry_go_round": FlatRideSpec(frames=32, directions=1, rider_slots=68),
+    "ferris_wheel": FlatRideSpec(frames=8, directions=4, rider_slots=512),
     # Twist.cpp: `base + (frameNum % 24)`, one symmetric 24-frame spin reused for
     # every view direction (like the carousel), then 216 blank rider overlays.
-    "twist": FlatRideSpec(
-        frames=24, directions=1, rider_slots=216, has_shelter=False,
-        waypoints=TWIST_WAYPOINTS, car=_TWIST_CAR,
-        category="thrill", rotation_mode=1,
-    ),
+    "twist": FlatRideSpec(frames=24, directions=1, rider_slots=216, rotation_mode=1),
     # Enterprise.cpp: `base + (animationFrame << 2) + direction`, a tilted wheel
     # stored as 4 directions x 49 frames interleaved (direction is the fast index),
     # then 48 blank rider overlays. Authored on a 4x4 footprint.
     "enterprise": FlatRideSpec(
-        frames=49, directions=4, rider_slots=48, has_shelter=False,
-        waypoints=ENTERPRISE_WAYPOINTS, car=_ENTERPRISE_CAR,
-        category="thrill", rotation_mode=2, direction_minor=True,
+        frames=49, directions=4, rider_slots=48, rotation_mode=2, direction_minor=True,
+    ),
+    # MotionSimulator.cpp: `base + direction + flatRideAnimationFrame * 4`, the same
+    # direction-minor 4-direction ring as the enterprise, but the engine cycles it
+    # through Status::simulatorOperating (a hardcoded tilt sequence) rather than a
+    # `rotationMode`, so no mode is set. 35 poses (frames 0-3 are the restraint
+    # load stages, 4-34 the tilt motion); the boarding stairs are base-game
+    # graphics, so the object provides only the tilting pod. No rider overlays.
+    "motion_simulator": FlatRideSpec(
+        frames=35, directions=4, rider_slots=0, direction_minor=True,
+    ),
+    # SwingingShip.cpp: `base + plane*9 + swing*18` (+ frameNum for riders). The
+    # ship is stored as 2 planes (the camera diagonals; directions 0/2 and 1/3
+    # share a plane, the engine mirrors the swing sign for the back views) x 19
+    # swing blocks (block 0 upright, 1-9 lean one way, 10-18 the other), each ship
+    # sprite trailed by 8 interleaved rider sprites (emitted blank). The A-frame
+    # supports are base-game graphics, so the object provides only the ship. The
+    # 19 poses are authored in swing-block order (upright, then each lean ramp);
+    # the add-on samples a keyframed swing into that order.
+    "swinging_ship": FlatRideSpec(
+        frames=19, directions=2, rider_slots=0, direction_minor=True, blank_sub_slots=8,
+    ),
+    # SpaceRings.cpp: `base + direction + flatRideAnimationFrame * 4`, the same
+    # direction-minor 4-direction ring as the enterprise/simulator, here a single
+    # ring's full 88-pose tumble. The object provides one ring (the engine spawns
+    # carsPerFlatRide=4 of them); 4*88 rider overlays follow at offset 352
+    # (`base + 352 + direction + frame*4`), emitted blank.
+    "space_rings": FlatRideSpec(
+        frames=88, directions=4, rider_slots=352, direction_minor=True,
     ),
 }
 

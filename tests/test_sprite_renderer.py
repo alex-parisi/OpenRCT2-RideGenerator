@@ -47,6 +47,7 @@ def test_count_stall_sprites():
     assert count_stall_sprites("first_aid") == 6
     assert count_stall_sprites("crooked_house") == 4
     assert count_stall_sprites("circus") == 4
+    assert count_stall_sprites("3d_cinema") == 4
     # 4 building views + 72 ghost overlays.
     assert count_stall_sprites("haunted_house") == 76
     # 32 structure rotation frames + 68 blank rider overlays.
@@ -57,6 +58,12 @@ def test_count_stall_sprites():
     assert count_stall_sprites("twist") == 240
     # 4 directions x 49 frames + 48 blank rider overlays.
     assert count_stall_sprites("enterprise") == 244
+    # 4 directions x 35 tilt poses, no rider overlays.
+    assert count_stall_sprites("motion_simulator") == 140
+    # 2 planes x 19 swing blocks, each ship sprite trailed by 8 blank riders.
+    assert count_stall_sprites("swinging_ship") == 342
+    # 4 directions x 88 spin poses + 4*88 blank rider overlays.
+    assert count_stall_sprites("space_rings") == 704
 
 
 def test_render_shop_four_views(tmp_path):
@@ -171,6 +178,34 @@ def test_render_flat_ride_enterprise_interleaved_order(monkeypatch):
     assert len(images) == 244  # 4 x 49 structure + 48 blank riders
     assert len(seen) == 196
     assert seen[:8] == [0, 1, 2, 3, 0, 1, 2, 3]
+
+
+def test_render_flat_ride_motion_simulator_interleaved_order(monkeypatch):
+    # The motion simulator stores the ring direction-minor like the enterprise
+    # (image = frame * directions + direction), with no trailing rider overlays.
+    seen, images = _render_view_directions(monkeypatch, "motion_simulator", 35)
+    assert len(images) == 140  # 4 x 35 structure, no riders
+    assert len(seen) == 140
+    assert seen[:8] == [0, 1, 2, 3, 0, 1, 2, 3]
+
+
+def test_render_flat_ride_swinging_ship_interleaved_blanks(monkeypatch, tmp_path):
+    # The swinging ship is direction-minor (2 planes) and trails each ship sprite
+    # with 8 blank rider slots: image = swing*18 + plane*9 + sub.
+    import openrct2_ride_generator.sprite_renderer as sr
+
+    marker = IndexedImage(
+        width=2, height=2, x_offset=0, y_offset=0, pixels=np.ones((2, 2), dtype=np.uint8)
+    )
+    monkeypatch.setattr(sr, "render_scene_view", lambda *a, **k: marker)
+    ctx = FakeContext()
+    images = sr.render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(19), "swinging_ship")
+    assert len(images) == 342  # 2 planes x 19 blocks x (1 ship + 8 blank riders)
+    # Block 0: plane-0 ship then 8 blanks, plane-1 ship then 8 blanks.
+    assert images[0] is marker
+    assert all(img.width == 1 and img.height == 1 for img in images[1:9])
+    assert images[9] is marker
+    assert all(img.width == 1 and img.height == 1 for img in images[10:18])
 
 
 def test_render_flat_ride_ferris_direction_major_order(monkeypatch):

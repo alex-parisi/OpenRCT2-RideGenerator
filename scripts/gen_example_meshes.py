@@ -409,6 +409,141 @@ def enterprise():
     o.write(BUILD / "enterprise.obj")
 
 
+# Motion simulator: the tilting pod only (the boarding stairs are base-game
+# graphics). Authored centred on the OBJ origin so a pose tilts it about its own
+# centre, then lifts it onto its cradle. 35 poses: frames 0-3 are the restraint
+# load stages (held level), frames 4-34 the tilt motion in pitch/roll groups
+# that mirror the engine's sprite layout (each group eases out and back to level
+# so the engine's jumps between groups stay smooth).
+MOTION_SIMULATOR_FRAMES = 35
+MOTION_SIMULATOR_LIFT = 1.7
+MOTION_SIMULATOR_PITCH = 18.0  # degrees about +Z (nose up/down)
+MOTION_SIMULATOR_ROLL = 15.0  # degrees about +X (bank left/right)
+
+
+def motion_simulator():
+    o = ObjBuilder(
+        "Motion simulator (motion_simulator flat ride): the tilting pod only.\n"
+        "# Authored centred on the OBJ origin so animation.frames can tilt it about\n"
+        "# its own centre (pitch about +Z, roll about +X) and lift it onto its\n"
+        "# cradle. The boarding stairs are base-game graphics, so the object\n"
+        "# provides only the pod; 4 view directions x 35 tilt poses."
+    )
+    o.box("Remap1", -1.3, 1.3, -0.55, 0.55, -0.85, 0.85, faces="xXyYz")  # cabin
+    o.box("Metal", 1.3, 1.34, -0.4, 0.4, -0.7, 0.7, faces="X")  # screen-end face
+    o.box("Wood", -1.32, 1.32, 0.55, 0.62, -0.87, 0.87, faces="Y")  # roof cap
+    o.box("Brass", -0.22, 0.22, -0.95, -0.55, -0.3, 0.3)  # cradle stub below
+    o.write(BUILD / "motion_simulator.obj")
+
+
+def _motion_simulator_pose(pitch: float, roll: float) -> str:
+    return (
+        f"{{mesh_index: 0, position: [0, {MOTION_SIMULATOR_LIFT:g}, 0], "
+        f"orientation: [0, {round(pitch, 3):g}, {round(roll, 3):g}]}}"
+    )
+
+
+def _motion_simulator_frames() -> list[str]:
+    p, r = MOTION_SIMULATOR_PITCH, MOTION_SIMULATOR_ROLL
+    poses: list[tuple[float, float]] = [(0.0, 0.0)] * 4  # 0-3: restraint load stages
+    # Each motion group eases from level out to its excursion and back (sin over
+    # six steps), matching the engine's six-wide pitch / roll / combo sprite groups.
+    bumps = [math.sin(math.pi * k / 5) for k in range(6)]
+    poses += [(p * b, 0.0) for b in bumps]  # 4-9: pitch up
+    poses += [(0.0, 0.0)]  # 10: level
+    poses += [(-p * b, 0.0) for b in bumps]  # 11-16: pitch down
+    poses += [(0.0, r * b) for b in bumps]  # 17-22: roll
+    poses += [(0.7 * p * b, 0.7 * r * b) for b in bumps]  # 23-28: pitch + roll
+    poses += [(-0.7 * p * b, 0.7 * r * b) for b in bumps]  # 29-34: pitch - roll
+    assert len(poses) == MOTION_SIMULATOR_FRAMES
+    return [f"    - [{_motion_simulator_pose(pitch, roll)}]" for pitch, roll in poses]
+
+
+# Swinging ship: the boat + its swing beams only (the A-frame supports are
+# base-game graphics). Authored hanging from the OBJ origin (the swing axis) so a
+# pose swings it about +Z and lifts the pivot onto the A-frame. 19 swing-block
+# poses: block 0 upright, blocks 1-9 lean one way, 10-18 the other (the engine's
+# image order); the add-on samples a keyframed swing into this order.
+SWINGING_SHIP_FRAMES = 19
+SWINGING_SHIP_PIVOT = 3.6  # OBJ +Y height lifting the swing axis onto the A-frame
+SWINGING_SHIP_AMPLITUDE = 52.0  # max swing angle, degrees about +Z
+
+
+def swinging_ship():
+    o = ObjBuilder(
+        "Swinging ship (swinging_ship flat ride): the boat + swing beams only.\n"
+        "# Authored hanging from the OBJ origin (the swing axis) so animation.frames\n"
+        "# can swing it about +Z and lift the pivot onto the base-game A-frame. The\n"
+        "# supports are base-game graphics, so the object provides only the ship;\n"
+        "# 2 camera planes x 19 swing poses (+8 blank rider slots each)."
+    )
+    # Swing beams hanging from the pivot (origin) down to the deck.
+    o.box("Brass", -0.13, 0.13, -2.3, 0.05, -0.95, -0.75)
+    o.box("Brass", -0.13, 0.13, -2.3, 0.05, 0.75, 0.95)
+    # Hull along +X: a deck slab over a tapered hull, with raised bow/stern ends.
+    o.box("Wood", -2.4, 2.4, -2.55, -2.25, -0.8, 0.8)  # deck
+    o.box("Remap1", -2.1, 2.1, -3.3, -2.55, -0.65, 0.65)  # hull body
+    o.box("Remap2", -2.5, -2.1, -3.1, -1.7, -0.55, 0.55)  # stern block
+    o.box("Remap2", 2.1, 2.5, -3.1, -1.7, -0.55, 0.55)  # bow block
+    o.write(BUILD / "swinging_ship.obj")
+
+
+def _swinging_ship_pose(angle: float) -> str:
+    return (
+        f"{{mesh_index: 0, position: [0, {SWINGING_SHIP_PIVOT:g}, 0], "
+        f"orientation: [0, {round(angle, 3):g}, 0]}}"
+    )
+
+
+def _swinging_ship_frames() -> list[str]:
+    amp = SWINGING_SHIP_AMPLITUDE
+    angles = [0.0]  # block 0: upright
+    angles += [amp * r / 9 for r in range(1, 10)]  # blocks 1-9: lean one way
+    angles += [-amp * r / 9 for r in range(1, 10)]  # blocks 10-18: lean the other
+    assert len(angles) == SWINGING_SHIP_FRAMES
+    return [f"    - [{_swinging_ship_pose(a)}]" for a in angles]
+
+
+# Space rings: one tumbling ring (the engine spawns four). A ring disc in the
+# X-Y plane, axle along Z, centred at the origin, with a seat on the rim that
+# tumbles with it; the spin lifts it clear of the ground. A full 88-pose turn.
+SPACE_RINGS_FRAMES = 88
+SPACE_RINGS_RADIUS = 1.05
+SPACE_RINGS_LIFT = 1.25
+SPACE_RINGS_SPIN_STEP = 360.0 / SPACE_RINGS_FRAMES
+
+
+def space_rings():
+    o = ObjBuilder(
+        "Space rings (space_rings flat ride): one tumbling ring (the engine spawns\n"
+        "# four). Disc in the X-Y plane, axle along Z, centred at the origin so\n"
+        "# animation.frames spins it and lifts it clear of the ground; a seat rides\n"
+        "# the rim and tumbles with it. One ring x 4 directions x 88 spin poses."
+    )
+    r = SPACE_RINGS_RADIUS
+    o.box("Brass", -0.18, 0.18, -0.18, 0.18, -0.12, 0.12)  # hub
+    for k in range(4):
+        a = 2 * math.pi * k / 4
+        o.flat_strut(
+            "Brass", (0.15 * math.cos(a), 0.15 * math.sin(a)),
+            (r * math.cos(a), r * math.sin(a)), 0.08, -0.05, 0.05,
+        )
+    o.annulus("Remap1", r + 0.12, r - 0.12, -0.1, 0.1, n=24)  # ring rim
+    o.box("Remap2", -0.28, 0.28, -r - 0.05, -r + 0.45, -0.28, 0.28)  # seat on the rim
+    o.write(BUILD / "space_rings.obj")
+
+
+def _space_rings_frames() -> list[str]:
+    lines = []
+    for f in range(SPACE_RINGS_FRAMES):
+        spin = round(f * SPACE_RINGS_SPIN_STEP, 3)
+        lines.append(
+            f"    - [{{mesh_index: 0, position: [0, {SPACE_RINGS_LIFT:g}, 0], "
+            f"orientation: [0, {spin:g}, 0]}}]"
+        )
+    return lines
+
+
 def _merry_go_round_frames() -> list[str]:
     lines = []
     for i in range(MERRY_GO_ROUND_FRAMES):
@@ -473,6 +608,9 @@ def print_spin(ride: str) -> None:
         "ferris_wheel": _ferris_wheel_frames,
         "twist": _twist_frames,
         "enterprise": _enterprise_frames,
+        "motion_simulator": _motion_simulator_frames,
+        "swinging_ship": _swinging_ship_frames,
+        "space_rings": _space_rings_frames,
     }
     print("animation:")
     print("  frames:")
@@ -482,14 +620,18 @@ def print_spin(ride: str) -> None:
 BUILDERS = (
     food_stall, drink_stall, shop, information_kiosk, cash_machine, first_aid,
     crooked_house, haunted_house, carousel, ferris_wheel, ferris_gondola,
-    twist, enterprise,
+    twist, enterprise, motion_simulator, swinging_ship, space_rings,
 )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--print-spin", choices=("merry_go_round", "ferris_wheel", "twist", "enterprise"),
+        "--print-spin",
+        choices=(
+            "merry_go_round", "ferris_wheel", "twist", "enterprise", "motion_simulator",
+            "swinging_ship", "space_rings",
+        ),
         help="print the named flat ride's animation.frames block and exit",
     )
     args = parser.parse_args()
