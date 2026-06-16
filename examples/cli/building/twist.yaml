@@ -1,0 +1,55 @@
+id: openrct2rg.ride.twist
+name: Twist
+description: A whirling platform of tubs that spin beneath a striped canopy
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 3x3 flat ride (thrill category). Like the merry-go-round, the whole
+# structure is one vehicle sprite the engine spins by cycling a ring of rotation
+# frames, so it is authored ONCE (twist.obj, centred on the middle tile) and the
+# animation below supplies one pose per frame: a full 360-degree turn about +Y
+# in 24 even steps (twist needs exactly 24). The engine reuses the single ring
+# for every view direction (Twist.cpp: base + frameNum % 24), so the platform is
+# built 4-fold symmetric. In Blender you keyframe the spin and the add-on samples
+# the 24 poses for you. 216 blank rider slots follow; capacity defaults to 18.
+ride_type: twist
+
+# The canopy + tubs are Remap1 (main colour) and the base platform is Remap2
+# (trim colour), so painting stays on with main + trim presets (from TWIST1).
+disable_painting: false
+car_colours:
+  - [moss_green, yellow, black]
+  - [white, light_blue, black]
+  - [bright_red, white, black]
+
+meshes:
+  - twist.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [15, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [30, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [45, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [60, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [90, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [105, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [120, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [135, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [150, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [165, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [180, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [195, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [210, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [225, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [240, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [255, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [270, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [285, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [300, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [315, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [330, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [345, 0, 0]}]

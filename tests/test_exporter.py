@@ -167,12 +167,63 @@ def test_build_stall_json_ferris_wheel_shape(tmp_path):
     assert p["category"] == "gentle"
     # The ferris wheel does not shelter guests, unlike the other car-bearing rides.
     assert "hasShelter" not in p
+    # The gentle flat rides advance via a plain rotationFrameMask, not rotationMode.
+    assert "rotationMode" not in p
     car = p["cars"]
     assert car["numSeats"] == 32
     assert car["rotationFrameMask"] == 7
     assert car["numSegments"] == 0
     assert len(car["loadingWaypoints"]) == 16
     assert j["strings"]["capacity"] == {"en-GB": "32 guests"}
+
+
+def test_build_stall_json_twist_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="twist",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(24)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "twist"
+    # The twist is a thrill ride that advances via rotationMode, not a mask.
+    assert p["category"] == "thrill"
+    assert p["rotationMode"] == 1
+    assert "hasShelter" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 18
+    assert "rotationFrameMask" not in car
+    assert car["numSegments"] == 4
+    assert car["tabOffset"] == -12
+    assert len(car["loadingWaypoints"]) == 72
+    assert j["strings"]["capacity"] == {"en-GB": "18 guests"}
+
+
+def test_build_stall_json_enterprise_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="enterprise",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(49)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "enterprise"
+    assert p["category"] == "thrill"
+    assert p["rotationMode"] == 2
+    assert "hasShelter" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 16
+    assert "rotationFrameMask" not in car
+    assert car["numSegments"] == 8
+    assert car["seatsInPairs"] is False
+    assert len(car["loadingWaypoints"]) == 64
+    assert j["strings"]["capacity"] == {"en-GB": "16 guests"}
 
 
 def test_build_stall_json_crooked_house_has_no_waypoints(tmp_path):

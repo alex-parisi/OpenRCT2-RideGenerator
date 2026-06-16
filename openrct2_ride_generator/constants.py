@@ -41,6 +41,8 @@ STALL_TYPES: dict[str, StallKind] = {
     "circus": StallKind.BUILDING,
     "merry_go_round": StallKind.FLAT_RIDE,
     "ferris_wheel": StallKind.FLAT_RIDE,
+    "twist": StallKind.FLAT_RIDE,
+    "enterprise": StallKind.FLAT_RIDE,
 }
 
 # Shop-kind ride types whose object may carry a `sells` shop item. The cash
@@ -67,6 +69,8 @@ DEFAULT_CLEARANCE: dict[str, int] = {
     "circus": 128,
     "merry_go_round": 64,
     "ferris_wheel": 176,
+    "twist": 64,
+    "enterprise": 160,
 }
 
 # OpenRCT2's ShopItemLookupTable (object/RideObject.cpp): the valid `sells`
@@ -149,6 +153,8 @@ DEFAULT_NUM_SEATS: dict[str, int] = {
     "circus": 30,
     "merry_go_round": 16,
     "ferris_wheel": 32,
+    "twist": 18,
+    "enterprise": 16,
 }
 
 # The fixed car entry the bundled RCT2 building rides share. The car is never
@@ -216,12 +222,22 @@ LOADING_WAYPOINTS: list[list[list[int]]] = [
 class FlatRideSpec:
     """Engine sprite layout + fixed car-entry fields for an animated flat ride."""
 
-    frames: int  # authored animation poses per direction (= rotationFrameMask + 1)
+    frames: int  # authored animation poses per direction (carousel/ferris: rotationFrameMask + 1)
     directions: int  # distinct view directions stored in the structure ring
     rider_slots: int  # trailing blank peep overlays after the structure frames
     has_shelter: bool  # the ride's `hasShelter` property
     waypoints: list[list[list[int]]]  # car loadingWaypoints
     car: dict[str, object]  # fixed car-entry fields (sans numSeats / colour flags)
+    category: str = "gentle"  # the ride's build-menu category ("gentle" / "thrill")
+    # The properties-level `rotationMode` (how the engine advances the structure's
+    # animation frame). The carousel/ferris use a plain rotationFrameMask instead and
+    # leave this unset; the twist (1) and enterprise (2) set it.
+    rotation_mode: int | None = None
+    # Image order of the structure ring. False (carousel/ferris): direction-major,
+    # `image = direction * frames + frame` (FerrisWheel.cpp `base + direction*8 + frame`).
+    # True (enterprise): direction-minor, `image = frame * directions + direction`
+    # (Enterprise.cpp `base + (animationFrame << 2) + direction`).
+    direction_minor: bool = False
 
     @property
     def structure_sprites(self) -> int:
@@ -318,6 +334,150 @@ FERRIS_WHEEL_WAYPOINTS: list[list[list[int]]] = [
     [[-12, 44], [-12, -16], [-12, -16]],
 ]
 
+# The twist's 72-entry loading-waypoint table, copied verbatim from TWIST1.
+TWIST_WAYPOINTS: list[list[list[int]]] = [
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [43, 43], [33, 33]],
+    [[-43, 43], [43, 43], [33, 33]],
+    [[43, 43], [43, 43], [33, 33]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [3, -42], [0, -42]],
+    [[3, -42], [3, -42], [0, -42]],
+    [[-43, -43], [3, -42], [0, -42]],
+    [[43, 43], [43, -43], [0, -42]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+    [[43, -43], [-43, -43], [-42, 0]],
+    [[-43, -43], [-42, -3], [-42, 0]],
+    [[-42, -3], [-42, -3], [-42, 0]],
+    [[-43, 43], [-42, -3], [-42, 0]],
+]
+
+# The enterprise's 64-entry loading-waypoint table, copied verbatim from ENTERP.
+ENTERPRISE_WAYPOINTS: list[list[list[int]]] = [
+    [[53, 0], [53, 0], [53, 0]],
+    [[54, -54], [53, 0], [53, 0]],
+    [[-54, -54], [54, -54], [53, 0]],
+    [[54, 54], [53, 0], [53, 0]],
+    [[54, -54], [0, -53], [0, -53]],
+    [[0, -53], [0, -53], [0, -53]],
+    [[-54, -54], [0, -53], [0, -53]],
+    [[54, 54], [54, -54], [0, -53]],
+    [[54, 54], [-54, 54], [-53, 0]],
+    [[-54, -54], [-53, 0], [-53, 0]],
+    [[-53, 0], [-53, 0], [-53, 0]],
+    [[-54, 54], [-53, 0], [-53, 0]],
+    [[54, 54], [0, 53], [0, 53]],
+    [[54, -54], [54, 54], [0, 53]],
+    [[-54, 54], [0, 53], [0, 53]],
+    [[0, 53], [0, 53], [0, 53]],
+    [[53, -10], [53, -10], [53, -10]],
+    [[54, -54], [53, -10], [53, -10]],
+    [[-54, -54], [54, -54], [53, -10]],
+    [[54, 54], [53, -10], [53, -10]],
+    [[54, -54], [-10, -53], [-10, -53]],
+    [[-10, -53], [-10, -53], [-10, -53]],
+    [[-54, -54], [-10, -53], [-10, -53]],
+    [[54, 54], [54, -54], [-9, -53]],
+    [[54, 54], [-54, 54], [-53, 10]],
+    [[-54, -54], [-53, 10], [-53, 10]],
+    [[-53, 10], [-53, 10], [-53, 10]],
+    [[-54, 54], [-53, 10], [-53, 10]],
+    [[54, 54], [10, 53], [10, 53]],
+    [[54, -54], [54, 54], [10, 53]],
+    [[-54, 54], [10, 53], [10, 53]],
+    [[10, 53], [10, 53], [10, 53]],
+    [[54, -54], [54, -54], [44, -44]],
+    [[54, -54], [54, -54], [44, -44]],
+    [[-54, -54], [54, -54], [44, -44]],
+    [[54, 54], [54, -54], [44, -44]],
+    [[54, -54], [-54, -54], [-44, -44]],
+    [[-54, -54], [-54, -54], [-44, -44]],
+    [[-54, -54], [-54, -54], [-44, -44]],
+    [[-54, 54], [-54, -54], [-44, -44]],
+    [[54, 54], [-54, 54], [-44, 44]],
+    [[-54, -54], [-54, 54], [-44, 44]],
+    [[-54, 54], [-54, 54], [-44, 44]],
+    [[-54, 54], [-54, 54], [-44, 44]],
+    [[54, 54], [54, 54], [44, 44]],
+    [[54, -54], [54, 54], [44, 44]],
+    [[-54, 54], [54, 54], [44, 44]],
+    [[54, 54], [54, 54], [44, 44]],
+    [[54, -54], [54, -54], [44, -44]],
+    [[54, -54], [54, -54], [44, -44]],
+    [[-54, -54], [54, -54], [44, -44]],
+    [[54, 54], [54, -54], [44, -44]],
+    [[54, -54], [-54, -54], [-44, -44]],
+    [[-54, -54], [-54, -54], [-44, -44]],
+    [[-54, -54], [-54, -54], [-44, -44]],
+    [[-54, 54], [-54, -54], [-44, -44]],
+    [[54, 54], [-54, 54], [-44, 44]],
+    [[-54, -54], [-54, 54], [-44, 44]],
+    [[-54, 54], [-54, 54], [-44, 44]],
+    [[-54, 54], [-54, 54], [-44, 44]],
+    [[54, 54], [54, 54], [44, 44]],
+    [[54, -54], [54, 54], [44, 44]],
+    [[-54, 54], [54, 54], [44, 44]],
+    [[54, 54], [54, 54], [44, 44]],
+]
+
 # Fixed car-entry fields per ride (numSeats and the remap-derived colour flags
 # are added by the exporter). The car is never drawn as a normal vehicle, and
 # recalculateSpriteBounds trues up the nominal bounds, so these are emitted
@@ -349,6 +509,37 @@ _FWH_CAR: dict[str, object] = {
     "recalculateSpriteBounds": True,
     "numSegments": 0,
 }
+# The twist (Twist.cpp) and enterprise (Enterprise.cpp) advance their structure
+# frame via the properties-level `rotationMode`, so the car carries no
+# `rotationFrameMask`; the spec's `frames` drives sampling/rendering. Copied
+# verbatim from TWIST1 / ENTERP.
+_TWIST_CAR: dict[str, object] = {
+    "spacing": 139456,
+    "mass": 200,
+    "tabOffset": -12,
+    "spriteWidth": 65,
+    "spriteHeightNegative": 58,
+    "spriteHeightPositive": 36,
+    "carVisual": 1,
+    "drawOrder": 6,
+    "frames": {"flat": True},
+    "recalculateSpriteBounds": True,
+    "numSegments": 4,
+}
+_ENTERPRISE_CAR: dict[str, object] = {
+    "spacing": 139456,
+    "mass": 200,
+    "tabOffset": -24,
+    "seatsInPairs": False,
+    "spriteWidth": 98,
+    "spriteHeightNegative": 128,
+    "spriteHeightPositive": 32,
+    "carVisual": 1,
+    "drawOrder": 6,
+    "frames": {"flat": True},
+    "recalculateSpriteBounds": True,
+    "numSegments": 8,
+}
 
 FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
     "merry_go_round": FlatRideSpec(
@@ -358,6 +549,21 @@ FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
     "ferris_wheel": FlatRideSpec(
         frames=8, directions=4, rider_slots=512, has_shelter=False,
         waypoints=FERRIS_WHEEL_WAYPOINTS, car=_FWH_CAR,
+    ),
+    # Twist.cpp: `base + (frameNum % 24)`, one symmetric 24-frame spin reused for
+    # every view direction (like the carousel), then 216 blank rider overlays.
+    "twist": FlatRideSpec(
+        frames=24, directions=1, rider_slots=216, has_shelter=False,
+        waypoints=TWIST_WAYPOINTS, car=_TWIST_CAR,
+        category="thrill", rotation_mode=1,
+    ),
+    # Enterprise.cpp: `base + (animationFrame << 2) + direction`, a tilted wheel
+    # stored as 4 directions x 49 frames interleaved (direction is the fast index),
+    # then 48 blank rider overlays. Authored on a 4x4 footprint.
+    "enterprise": FlatRideSpec(
+        frames=49, directions=4, rider_slots=48, has_shelter=False,
+        waypoints=ENTERPRISE_WAYPOINTS, car=_ENTERPRISE_CAR,
+        category="thrill", rotation_mode=2, direction_minor=True,
     ),
 }
 

@@ -53,6 +53,10 @@ def test_count_stall_sprites():
     assert count_stall_sprites("merry_go_round") == 100
     # 4 directions x 8 frames + 512 blank rider overlays.
     assert count_stall_sprites("ferris_wheel") == 544
+    # 24 structure rotation frames (symmetric, one direction) + 216 blank riders.
+    assert count_stall_sprites("twist") == 240
+    # 4 directions x 49 frames + 48 blank rider overlays.
+    assert count_stall_sprites("enterprise") == 244
 
 
 def test_render_shop_four_views(tmp_path):
@@ -122,6 +126,58 @@ def test_render_flat_ride_ferris_four_directions(tmp_path):
     assert sum(1 for e in ctx.events if e == "begin") == 32
     assert progress[-1] == (32, 32)
     assert all(img.width == 1 and img.height == 1 for img in images[32:])
+
+
+def test_render_flat_ride_twist_single_direction(tmp_path):
+    ctx = FakeContext()
+    images = render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(24), "twist")
+    # 24 structure frames (one symmetric direction) + 216 blank rider overlays.
+    assert len(images) == 240
+    assert sum(1 for e in ctx.events if e == "begin") == 24
+    assert all(img.width == 1 and img.height == 1 for img in images[24:])
+
+
+def _render_view_directions(monkeypatch, ride_type, frames):
+    """Record the view direction passed to render_scene_view for each structure
+    image, so the ring's image order can be asserted."""
+    import openrct2_ride_generator.sprite_renderer as sr
+    from openrct2_x7_renderer.ray_trace import VIEWS
+
+    seen = []
+
+    def spy(context, mesh, anchor, view):
+        seen.append(next(i for i, v in enumerate(VIEWS) if v is view))
+        return IndexedImage.blank(1, 1)
+
+    monkeypatch.setattr(sr, "render_scene_view", spy)
+    ctx = FakeContext()
+    images = sr.render_flat_ride(ctx, [_mesh_for(frames)], _spin_model(frames), ride_type)
+    return seen, images
+
+
+def _mesh_for(_frames):
+    import tempfile
+    from pathlib import Path
+
+    d = Path(tempfile.mkdtemp())
+    (d / "m.obj").write_text(_TRI)
+    return load_mesh(d / "m.obj")
+
+
+def test_render_flat_ride_enterprise_interleaved_order(monkeypatch):
+    # Enterprise stores the ring direction-minor (image = frame * directions +
+    # direction), so the rendered directions cycle 0,1,2,3, 0,1,2,3, ...
+    seen, images = _render_view_directions(monkeypatch, "enterprise", 49)
+    assert len(images) == 244  # 4 x 49 structure + 48 blank riders
+    assert len(seen) == 196
+    assert seen[:8] == [0, 1, 2, 3, 0, 1, 2, 3]
+
+
+def test_render_flat_ride_ferris_direction_major_order(monkeypatch):
+    # The ferris wheel stores the ring direction-major (image = direction *
+    # frames + frame), so all 8 frames of direction 0 render before direction 1.
+    seen, _ = _render_view_directions(monkeypatch, "ferris_wheel", 8)
+    assert seen[:9] == [0, 0, 0, 0, 0, 0, 0, 0, 1]
 
 
 def test_render_flat_ride_empty_pose_blanks(tmp_path):

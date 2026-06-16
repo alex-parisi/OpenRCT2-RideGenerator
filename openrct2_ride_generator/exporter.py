@@ -63,9 +63,19 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
     # own car entry; shops and facilities are "stall" rides the engine fills in.
     has_car = stall.kind in (StallKind.BUILDING, StallKind.FLAT_RIDE)
 
+    # Shops/facilities are "stall" rides; building rides are all "gentle"; flat
+    # rides carry the category from their spec (the carousel/ferris are gentle,
+    # the twist/enterprise are thrill).
+    if stall.kind is StallKind.FLAT_RIDE:
+        category = FLAT_RIDE_SPECS[stall.stall_type].category
+    elif has_car:
+        category = "gentle"
+    else:
+        category = "stall"
+
     properties: dict[str, Any] = {
         "type": stall.stall_type,
-        "category": "gentle" if has_car else "stall",
+        "category": category,
         "clearance": stall.clearance,
     }
     if has_car:
@@ -73,8 +83,11 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
         properties["tabScale"] = 0.5
         # Buildings always shelter guests; flat rides declare it per type.
         if stall.kind is StallKind.FLAT_RIDE:
-            if FLAT_RIDE_SPECS[stall.stall_type].has_shelter:
+            spec = FLAT_RIDE_SPECS[stall.stall_type]
+            if spec.has_shelter:
                 properties["hasShelter"] = True
+            if spec.rotation_mode is not None:
+                properties["rotationMode"] = spec.rotation_mode
         else:
             properties["hasShelter"] = True
     if stall.sells:

@@ -1,0 +1,83 @@
+id: openrct2rg.ride.enterprise
+name: Enterprise
+description: A wheel of enclosed pods that loop riders high over the park
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 4x4 flat ride (thrill category). The wheel is NOT vertically
+# symmetric, so the engine stores 4 directions x 49 frames, interleaved with the
+# direction as the fast index (Enterprise.cpp: base + (animationFrame << 2) +
+# direction); the generator renders all four directions. The truss supports are
+# base-game graphics, so the object provides only the rotating wheel (one mesh,
+# centred at the origin). Unlike the ferris wheel's upright gondolas, the pods
+# are rigidly attached and rotate WITH the wheel (riders invert), so the whole
+# structure is one rigid spin about its axle (Z), lifted to the hub height. The
+# 49 frames span one full turn, so frame 49 == frame 0. In Blender, keyframe
+# this spin and the add-on samples the 49 poses for you. 48 blank rider slots
+# follow; capacity defaults to 16, clearance to 160.
+ride_type: enterprise
+
+# The rim + pods are Remap1 (main) / Remap2 (trim), so painting stays on with
+# main + trim presets (from ENTERP).
+disable_painting: false
+car_colours:
+  - [bright_red, white, black]
+  - [saturated_green, bright_red, black]
+  - [light_blue, yellow, black]
+
+meshes:
+  - enterprise.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 7.347, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 14.694, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 22.041, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 29.388, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 36.735, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 44.082, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 51.429, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 58.776, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 66.122, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 73.469, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 80.816, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 88.163, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 95.51, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 102.857, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 110.204, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 117.551, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 124.898, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 132.245, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 139.592, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 146.939, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 154.286, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 161.633, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 168.98, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 176.327, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 183.673, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 191.02, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 198.367, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 205.714, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 213.061, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 220.408, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 227.755, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 235.102, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 242.449, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 249.796, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 257.143, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 264.49, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 271.837, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 279.184, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 286.531, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 293.878, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 301.224, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 308.571, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 315.918, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 323.265, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 330.612, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 337.959, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 345.306, 0]}]
+    - [{mesh_index: 0, position: [0, 4.2, 0], orientation: [0, 352.653, 0]}]

@@ -42,6 +42,10 @@ STALL_TYPE_ITEMS = [
      "Animated 3x3 flat ride: keyframe a 360-degree spin; the add-on samples it"),
     ("ferris_wheel", "Ferris Wheel",
      "Animated 1x4 flat ride: keyframe the wheel spin (gondolas stay upright)"),
+    ("twist", "Twist",
+     "Animated 3x3 flat ride: keyframe a 360-degree spin (symmetric, like the carousel)"),
+    ("enterprise", "Enterprise",
+     "Animated 4x4 flat ride: keyframe the tilted wheel spin (4 directions)"),
 ]
 
 SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITEMS))

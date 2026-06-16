@@ -350,6 +350,65 @@ def ferris_gondola():
     o.write(BUILD / "gondola.obj")
 
 
+TWIST_FRAMES = 24
+
+
+def twist():
+    o = ObjBuilder(
+        "Twist (twist flat ride): a 4-fold-symmetric spinning platform with tubs.\n"
+        "# Authored centred on the middle tile, spun about +Y by animation.frames\n"
+        "# (one symmetric ring the engine reuses for every view, like the carousel)."
+    )
+    # Base platform disc (trim colour) + central pole and canopy.
+    o.ngon_prism("Remap2", 0, 0, 2.2, 0.0, 0.3, n=16, bottom=True, top=True)
+    o.ngon_prism("Brass", 0, 0, 0.24, 0.3, 2.6, n=8)
+    o.cone("Remap1", 0, 0, 1.0, 2.6, 3.5, n=12)
+    # Four tubs at the rim, 4-fold symmetric so the single rendered view holds for
+    # every camera direction.
+    for k in range(4):
+        a = 2 * math.pi * k / 4
+        cx, cz = 1.5 * math.cos(a), 1.5 * math.sin(a)
+        o.ngon_prism("Remap1", cx, cz, 0.62, 0.3, 1.0, n=8, bottom=True, top=False)
+        o.ngon_prism("Wood", cx, cz, 0.66, 0.95, 1.08, n=8, bottom=False, top=False)
+    o.write(BUILD / "twist.obj")
+
+
+# Enterprise geometry: a vertical wheel (disc in the X-Y plane, axle along Z,
+# centred at the origin) whose pods are rigidly attached, so the whole wheel is
+# one mesh spun about its axle (riders invert, unlike the ferris wheel's upright
+# gondolas). The truss supports are base-game graphics, so the object provides
+# only the wheel; the spin lifts it to the hub height.
+ENTERPRISE_FRAMES = 49
+ENTERPRISE_PODS = 10
+ENTERPRISE_RADIUS = 3.4
+ENTERPRISE_HUB_Y = 4.2
+# 49 frames span one full turn (each 360/49 deg), so frame 49 == frame 0.
+ENTERPRISE_SPIN_STEP = 360.0 / ENTERPRISE_FRAMES
+
+
+def enterprise():
+    o = ObjBuilder(
+        "Enterprise (enterprise flat ride): the rotating wheel with rigidly-\n"
+        "# attached pods. Disc in the X-Y plane, axle along Z, centred at the origin\n"
+        "# (the spin lifts it to the hub). The truss supports are base-game\n"
+        "# graphics, so the object provides only the wheel; the pods rotate WITH the\n"
+        "# wheel (riders invert), unlike the ferris wheel's upright gondolas."
+    )
+    r = ENTERPRISE_RADIUS
+    o.box("Brass", -0.4, 0.4, -0.4, 0.4, -0.2, 0.2)  # hub
+    for k in range(ENTERPRISE_PODS):
+        a = 2 * math.pi * k / ENTERPRISE_PODS
+        cx, cy = r * math.cos(a), r * math.sin(a)
+        # Spoke from the hub out to the rim.
+        o.flat_strut("Metal", (0.32 * math.cos(a), 0.32 * math.sin(a)),
+                     (cx, cy), 0.1, -0.04, 0.04)
+        # Enclosed pod at the rim (cabin + canopy) straddling the rim point.
+        o.box("Remap2", cx - 0.42, cx + 0.42, cy - 0.42, cy + 0.42, -0.3, 0.3)
+        o.box("Brass", cx - 0.46, cx + 0.46, cy - 0.46, cy + 0.46, 0.3, 0.36, faces="Z")
+    o.annulus("Remap1", r + 0.2, r - 0.2, -0.13, 0.13, n=32)  # outer rim
+    o.write(BUILD / "enterprise.obj")
+
+
 def _merry_go_round_frames() -> list[str]:
     lines = []
     for i in range(MERRY_GO_ROUND_FRAMES):
@@ -384,9 +443,37 @@ def _ferris_wheel_frames() -> list[str]:
     return lines
 
 
+def _twist_frames() -> list[str]:
+    lines = []
+    for i in range(TWIST_FRAMES):
+        yaw = round(360.0 * i / TWIST_FRAMES, 3)
+        lines.append(
+            f"    - [{{mesh_index: 0, position: [0, 0, 0], "
+            f"orientation: [{yaw:g}, 0, 0]}}]"
+        )
+    return lines
+
+
+def _enterprise_frames() -> list[str]:
+    lines = []
+    for f in range(ENTERPRISE_FRAMES):
+        # The wheel (mesh 0): spin about Z (the axle), lifted to the hub height.
+        spin = round(f * ENTERPRISE_SPIN_STEP, 3)
+        lines.append(
+            f"    - [{{mesh_index: 0, position: [0, {ENTERPRISE_HUB_Y:g}, 0], "
+            f"orientation: [0, {spin:g}, 0]}}]"
+        )
+    return lines
+
+
 def print_spin(ride: str) -> None:
     """Re-emit a flat ride's `animation.frames` block for its example config."""
-    emit = {"merry_go_round": _merry_go_round_frames, "ferris_wheel": _ferris_wheel_frames}
+    emit = {
+        "merry_go_round": _merry_go_round_frames,
+        "ferris_wheel": _ferris_wheel_frames,
+        "twist": _twist_frames,
+        "enterprise": _enterprise_frames,
+    }
     print("animation:")
     print("  frames:")
     print("\n".join(emit[ride]()))
@@ -395,13 +482,14 @@ def print_spin(ride: str) -> None:
 BUILDERS = (
     food_stall, drink_stall, shop, information_kiosk, cash_machine, first_aid,
     crooked_house, haunted_house, carousel, ferris_wheel, ferris_gondola,
+    twist, enterprise,
 )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--print-spin", choices=("merry_go_round", "ferris_wheel"),
+        "--print-spin", choices=("merry_go_round", "ferris_wheel", "twist", "enterprise"),
         help="print the named flat ride's animation.frames block and exit",
     )
     args = parser.parse_args()

@@ -117,21 +117,30 @@ def render_flat_ride(
     rotationally symmetric, so it stores a single direction (the engine folds the
     camera rotation out and reuses the ring); the ferris wheel is not, so it
     stores all four (``FerrisWheel.cpp`` reads ``base + direction * 8 + frame``).
+
+    ``spec.direction_minor`` selects the ring's image order: direction-major
+    (``image = direction * frames + frame``, the ferris/carousel layout) or
+    direction-minor (``image = frame * directions + direction``, the enterprise
+    layout, ``Enterprise.cpp`` reads ``base + (animationFrame << 2) + direction``).
     The trailing rider slots are emitted blank, like the haunted house's ghosts,
     so the engine never paints a stray peep image."""
     spec = FLAT_RIDE_SPECS[stall_type]
     # Each pose's baked mesh is the same across directions, so bake once per pose.
     posed = [combine_model_world(meshes, model, frame=f) for f in range(spec.frames)]
+    if spec.direction_minor:
+        order = [(d, f) for f in range(spec.frames) for d in range(spec.directions)]
+    else:
+        order = [(d, f) for d in range(spec.directions) for f in range(spec.frames)]
     images: list[IndexedImage] = []
     total = spec.structure_sprites
-    for d in range(spec.directions):
-        for f, combined in enumerate(posed):
-            if combined.faces.shape[0] == 0:
-                images.append(IndexedImage.blank(1, 1))
-            else:
-                images.append(render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[d]))
-            if progress is not None:
-                progress(d * spec.frames + f + 1, total)
+    for i, (d, f) in enumerate(order):
+        combined = posed[f]
+        if combined.faces.shape[0] == 0:
+            images.append(IndexedImage.blank(1, 1))
+        else:
+            images.append(render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[d]))
+        if progress is not None:
+            progress(i + 1, total)
     images += [IndexedImage.blank(1, 1)] * spec.rider_slots
     return images
 

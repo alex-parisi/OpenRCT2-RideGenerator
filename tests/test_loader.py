@@ -183,6 +183,32 @@ def test_ferris_wheel_kind_and_sprite_counts(tmp_path):
     assert len(stall.model.meshes[0]) == 8
 
 
+def test_twist_kind_and_sprite_counts(tmp_path):
+    stall = build_stall(_flat_config("twist"), _meshes(tmp_path))
+    assert stall.kind is StallKind.FLAT_RIDE
+    assert stall.stall_type == "twist"
+    # 24 structure rotation frames (one symmetric direction) + 216 blank riders.
+    assert stall.num_view_sprites == 24
+    assert stall.num_overlay_sprites == 216
+    assert stall.num_sprites == 243
+    assert stall.clearance == DEFAULT_CLEARANCE["twist"]
+    assert stall.num_seats == DEFAULT_NUM_SEATS["twist"]
+    assert len(stall.model.meshes[0]) == 24
+
+
+def test_enterprise_kind_and_sprite_counts(tmp_path):
+    stall = build_stall(_flat_config("enterprise"), _meshes(tmp_path))
+    assert stall.kind is StallKind.FLAT_RIDE
+    assert stall.stall_type == "enterprise"
+    # 4 directions x 49 frames structure + 48 blank rider overlays, after previews.
+    assert stall.num_view_sprites == 196
+    assert stall.num_overlay_sprites == 48
+    assert stall.num_sprites == 247
+    assert stall.clearance == DEFAULT_CLEARANCE["enterprise"]
+    assert stall.num_seats == DEFAULT_NUM_SEATS["enterprise"]
+    assert len(stall.model.meshes[0]) == 49
+
+
 def test_flat_ride_seats_override(tmp_path):
     stall = build_stall(_flat_config(seats=24), _meshes(tmp_path))
     assert stall.num_seats == 24
@@ -192,6 +218,13 @@ def test_flat_ride_wrong_frame_count_rejected(tmp_path):
     cfg = _flat_config()
     cfg["animation"]["frames"] = cfg["animation"]["frames"][:8]
     with pytest.raises(LoadError, match="exactly 32 animation frames"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_enterprise_wrong_frame_count_rejected(tmp_path):
+    cfg = _flat_config("enterprise")
+    cfg["animation"]["frames"] = cfg["animation"]["frames"][:24]
+    with pytest.raises(LoadError, match="exactly 49 animation frames"):
         build_stall(cfg, _meshes(tmp_path))
 
 
