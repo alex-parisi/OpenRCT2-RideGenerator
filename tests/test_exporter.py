@@ -119,6 +119,62 @@ def test_build_stall_json_building_shape(tmp_path):
     assert j["strings"]["capacity"] == {"en-GB": "30 guests"}
 
 
+def _flat_frames(n):
+    return [
+        [{"mesh_index": 0, "position": [0, 0, 0], "orientation": [360.0 * i / n, 0, 0]}]
+        for i in range(n)
+    ]
+
+
+def test_build_stall_json_flat_ride_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="merry_go_round",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(32)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "merry_go_round"
+    assert p["category"] == "gentle"
+    assert p["tabScale"] == 0.5
+    assert p["hasShelter"] is True
+    assert "sells" not in p
+    assert p["carsPerFlatRide"] == 1
+    car = p["cars"]
+    assert car["numSeats"] == 16
+    assert car["rotationFrameMask"] == 31
+    assert car["tabOffset"] == -24
+    assert car["recalculateSpriteBounds"] is True
+    assert len(car["loadingWaypoints"]) == 64
+    assert j["strings"]["capacity"] == {"en-GB": "16 guests"}
+
+
+def test_build_stall_json_ferris_wheel_shape(tmp_path):
+    j = build_stall_json(
+        _stall(
+            tmp_path,
+            ride_type="ferris_wheel",
+            sells=None,
+            model=None,
+            animation={"frames": _flat_frames(8)},
+        )
+    )
+    p = j["properties"]
+    assert p["type"] == "ferris_wheel"
+    assert p["category"] == "gentle"
+    # The ferris wheel does not shelter guests, unlike the other car-bearing rides.
+    assert "hasShelter" not in p
+    car = p["cars"]
+    assert car["numSeats"] == 32
+    assert car["rotationFrameMask"] == 7
+    assert car["numSegments"] == 0
+    assert len(car["loadingWaypoints"]) == 16
+    assert j["strings"]["capacity"] == {"en-GB": "32 guests"}
+
+
 def test_build_stall_json_crooked_house_has_no_waypoints(tmp_path):
     j = build_stall_json(_stall(tmp_path, ride_type="crooked_house", sells=None, seats=8))
     car = j["properties"]["cars"]
@@ -215,6 +271,34 @@ def test_export_stall_to_haunted_house_includes_ghost_blanks(tmp_path):
     # 3 previews + 4 views + 72 blank ghost overlays.
     assert j["images"] == ["$LGX:images.dat[0..78]"]
     assert sum(1 for e in ctx.events if e == "begin") == 4
+
+
+def test_export_stall_to_flat_ride_includes_rider_blanks(tmp_path):
+    stall = _stall(
+        tmp_path, ride_type="merry_go_round", sells=None, model=None,
+        animation={"frames": _flat_frames(32)},
+    )
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "m.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "m.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    # 3 previews + 32 structure frames + 68 blank rider overlays.
+    assert j["images"] == ["$LGX:images.dat[0..102]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 32
+
+
+def test_export_stall_to_ferris_wheel_four_directions(tmp_path):
+    stall = _stall(
+        tmp_path, ride_type="ferris_wheel", sells=None, model=None,
+        animation={"frames": _flat_frames(8)},
+    )
+    ctx = FakeContext()
+    export_stall_to(stall, ctx, tmp_path / "f.parkobj", tmp_path / "w")
+    with zipfile.ZipFile(tmp_path / "f.parkobj") as zf:
+        j = json.loads(zf.read("object.json"))
+    # 3 previews + 4 directions x 8 frames + 512 blank rider overlays.
+    assert j["images"] == ["$LGX:images.dat[0..546]"]
+    assert sum(1 for e in ctx.events if e == "begin") == 32
 
 
 def test_export_stall_test_building_writes_only_view_pngs(tmp_path):

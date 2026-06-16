@@ -1,0 +1,21 @@
+id: openrct2rg.ride.first_aid
+name: First Aid Room
+description: A first aid room where guests recover from nausea
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Facility: 6 view sprites. Like the toilets, the doorway mesh (authored facing
+# OBJ +X) is marked `door: true` so the generator cuts the door sprite out of
+# the full building at the doorway's screen extent and guests sort into it.
+# First aid sells nothing and defaults to clearance 48.
+ride_type: first_aid
+
+meshes:
+  - first_aid.obj
+  - first_aid_door.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}
+  - {mesh_index: 1, position: [0, 0, 0], orientation: [0, 0, 0], door: true}

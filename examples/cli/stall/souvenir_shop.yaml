@@ -1,0 +1,23 @@
+id: openrct2rg.ride.souvenir_shop
+name: Souvenir Shop
+description: A shop selling toys from behind a glazed counter
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Shop: 4 view sprites, sells merchandise. Clearance defaults to 56.
+ride_type: shop
+sells: toy
+
+disable_painting: false
+car_colours:
+  - [bright_pink, black, black]
+  - [bright_green, black, black]
+  - [light_orange, black, black]
+
+meshes:
+  - souvenir_shop.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

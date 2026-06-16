@@ -17,6 +17,7 @@ from openrct2_object_common.loading import (
     apply_identity,
     load_colour_presets,
     load_object,
+    load_single_frame_model,
     parse_single_frame_model,
     require_choice,
 )
@@ -28,8 +29,10 @@ from .constants import (
     COLOR_NAMES,
     DEFAULT_CLEARANCE,
     DEFAULT_NUM_SEATS,
+    FLAT_RIDE_SPECS,
     MAX_SELLS,
     SHOP_ITEMS,
+    SHOP_SELL_TYPES,
     STALL_TYPES,
     StallKind,
 )
@@ -65,6 +68,38 @@ def _load_model(value: Any, num_meshes: int) -> tuple[Model, Model]:
     return Model(meshes=meshes_out), Model(meshes=door_out)
 
 
+def _load_flat_ride_model(root: dict[str, Any], num_meshes: int, ride_type: str) -> Model:
+    """Parse an animated flat ride's spin into a multi-frame Model.
+
+    The structure is authored as a 360-degree rotation; the add-on (or this
+    config's ``animation.frames`` list) supplies one pose -- a full ``model``
+    placement list -- per rotation frame. Each placement then carries one
+    :class:`MeshFrame` per pose, exactly the shape :func:`combine_model_world`
+    bakes when asked for a given frame. The frame count must match the ride's
+    declared rotation-frame count so the rendered ring lines up with the
+    engine's ``rotationFrameMask``.
+    """
+    anim = root.get("animation")
+    if not isinstance(anim, dict):
+        raise LoadError(f'A "{ride_type}" flat ride needs an "animation" object')
+    frames_value = anim.get("frames")
+    if not isinstance(frames_value, list) or not frames_value:
+        raise LoadError('Property "animation.frames" not found or is not a non-empty array')
+    expected = FLAT_RIDE_SPECS[ride_type].frames
+    if len(frames_value) != expected:
+        raise LoadError(
+            f'A "{ride_type}" needs exactly {expected} animation frames, '
+            f"got {len(frames_value)}"
+        )
+    poses = [load_single_frame_model(pose, num_meshes) for pose in frames_value]
+    n = len(poses[0].meshes)
+    for pose in poses:
+        if len(pose.meshes) != n:
+            raise LoadError("All animation frames must list the same number of model entries")
+    meshes_out = [[poses[g].meshes[i][0] for g in range(len(poses))] for i in range(n)]
+    return Model(meshes=meshes_out)
+
+
 def _load_ride_type(root: dict[str, Any]) -> str:
     return require_choice(
         require_string(root, "ride_type"),
@@ -89,22 +124,31 @@ def _load_sells(root: dict[str, Any], ride_type: str) -> list[str]:
         if len(sells) > MAX_SELLS:
             raise LoadError(f'Property "sells" lists {len(sells)} items (max {MAX_SELLS})')
 
-    kind = STALL_TYPES[ride_type]
-    if sells and kind is not StallKind.SHOP:
-        noun = "facility" if kind is StallKind.FACILITY else "building ride"
+    if sells and ride_type not in SHOP_SELL_TYPES:
+        kind = STALL_TYPES[ride_type]
+        noun = {
+            StallKind.FACILITY: "facility",
+            StallKind.BUILDING: "building ride",
+        }.get(kind, "ride")
         raise LoadError(f'A "{ride_type}" {noun} cannot have a "sells" property')
     if not sells and ride_type in ("food_stall", "drink_stall"):
         log.warning("%s with no sells items: the stall will sell nothing", ride_type)
     return sells
 
 
+def _has_car(ride_type: str) -> bool:
+    """Ride kinds that carry an explicit car entry (= capacity via numSeats):
+    the 3x3 building rides and the animated flat rides."""
+    return STALL_TYPES[ride_type] in (StallKind.BUILDING, StallKind.FLAT_RIDE)
+
+
 def _load_seats(root: dict[str, Any], ride_type: str) -> int:
-    """Building rides only: the car's numSeats (= ride capacity)."""
-    if "seats" in root and STALL_TYPES[ride_type] is not StallKind.BUILDING:
+    """Building / flat rides only: the car's numSeats (= ride capacity)."""
+    if "seats" in root and not _has_car(ride_type):
         raise LoadError(f'A "{ride_type}" ride cannot have a "seats" property')
     default = DEFAULT_NUM_SEATS.get(ride_type, 0)
     seats = optional_int(root, "seats", default)
-    if STALL_TYPES[ride_type] is StallKind.BUILDING and not 1 <= seats <= 255:
+    if _has_car(ride_type) and not 1 <= seats <= 255:
         raise LoadError(f'Property "seats" must be 1-255, got {seats}')
     return seats
 
@@ -150,7 +194,18 @@ def build_stall(
     obj.facility_door_split = optional_bool(root, "facility_door_split", True)
 
     obj.meshes = list(meshes)
-    obj.model, obj.door_model = _load_model(root.get("model"), len(obj.meshes))
+    if obj.kind is StallKind.FLAT_RIDE:
+        # Animated flat rides are posed by their `animation.frames` spin, not a
+        # static `model`; the door split never applies.
+        if "model" in root:
+            raise LoadError(
+                f'A "{obj.stall_type}" flat ride is posed by "animation.frames", '
+                'not a static "model"'
+            )
+        obj.model = _load_flat_ride_model(root, len(obj.meshes), obj.stall_type)
+        obj.door_model = Model()
+    else:
+        obj.model, obj.door_model = _load_model(root.get("model"), len(obj.meshes))
     if obj.door_model.meshes and obj.kind is not StallKind.FACILITY:
         raise LoadError(
             f'Only facilities can mark "door" model entries '

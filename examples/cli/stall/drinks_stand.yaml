@@ -1,0 +1,23 @@
+id: openrct2rg.ride.drinks_stand
+name: Drinks Stand
+description: A drink stall pouring cold drinks under a pitched canopy
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Drink stall: 4 view sprites, sells one drink. Clearance defaults to 64.
+ride_type: drink_stall
+sells: drink
+
+disable_painting: false
+car_colours:
+  - [light_blue, black, black]
+  - [teal, black, black]
+  - [bright_purple, black, black]
+
+meshes:
+  - drinks_stand.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

@@ -1,0 +1,24 @@
+id: openrct2rg.ride.burger_bar
+name: Burger Bar
+description: A food stall grilling burgers under a striped canopy
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Food stall: 4 view sprites, sells one shop item. Clearance defaults to 64.
+ride_type: food_stall
+sells: burger
+
+# The canopy uses Remap1, so leave painting on and offer a few colour presets.
+disable_painting: false
+car_colours:
+  - [bright_red, black, black]
+  - [yellow, black, black]
+  - [bright_green, black, black]
+
+meshes:
+  - burger_bar.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

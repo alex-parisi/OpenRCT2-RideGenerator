@@ -10,6 +10,8 @@ from openrct2_object_common.config import LoadError
 from openrct2_ride_generator.constants import (
     DEFAULT_CLEARANCE,
     DEFAULT_NUM_SEATS,
+    FLAT_RIDE_SPECS,
+    SHOP_SELL_TYPES,
     STALL_TYPES,
     StallKind,
 )
@@ -23,6 +25,27 @@ _TRI = "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n"
 def _meshes(tmp_path):
     (tmp_path / "m.obj").write_text(_TRI)
     return [load_mesh(tmp_path / "m.obj")]
+
+
+def _spin_frames(n):
+    """A minimal flat-ride spin: n poses rotating mesh 0 about +Y."""
+    return [
+        [{"mesh_index": 0, "position": [0, 0, 0], "orientation": [360.0 * i / n, 0, 0]}]
+        for i in range(n)
+    ]
+
+
+def _flat_config(ride_type="merry_go_round", **overrides):
+    """A valid animated flat-ride config (animation.frames instead of model)."""
+    cfg = {
+        "id": "openrct2rg.ride.test",
+        "name": "Test Ride",
+        "description": "A test ride",
+        "ride_type": ride_type,
+        "animation": {"frames": _spin_frames(FLAT_RIDE_SPECS[ride_type].frames)},
+    }
+    cfg.update(overrides)
+    return {k: v for k, v in cfg.items() if v is not None}
 
 
 def _config(**overrides):
@@ -94,8 +117,12 @@ def test_facility_kind_and_sprite_counts(tmp_path):
 
 @pytest.mark.parametrize("ride_type", sorted(STALL_TYPES))
 def test_per_type_clearance_defaults(tmp_path, ride_type):
-    sells = "drink" if STALL_TYPES[ride_type] is StallKind.SHOP else None
-    stall = build_stall(_config(ride_type=ride_type, sells=sells), _meshes(tmp_path))
+    if STALL_TYPES[ride_type] is StallKind.FLAT_RIDE:
+        cfg = _flat_config(ride_type=ride_type)
+    else:
+        sells = "drink" if ride_type in SHOP_SELL_TYPES else None
+        cfg = _config(ride_type=ride_type, sells=sells)
+    stall = build_stall(cfg, _meshes(tmp_path))
     assert stall.clearance == DEFAULT_CLEARANCE[ride_type]
 
 
@@ -125,6 +152,85 @@ def test_building_seats_override(tmp_path):
         _config(ride_type="circus", sells=None, seats=12), _meshes(tmp_path)
     )
     assert stall.num_seats == 12
+
+
+def test_flat_ride_kind_and_sprite_counts(tmp_path):
+    stall = build_stall(_flat_config(), _meshes(tmp_path))
+    assert stall.kind is StallKind.FLAT_RIDE
+    assert stall.stall_type == "merry_go_round"
+    # 32 structure rotation frames + 68 blank rider overlays, after 3 previews.
+    assert stall.num_view_sprites == 32
+    assert stall.num_overlay_sprites == 68
+    assert stall.num_sprites == 103
+    assert stall.clearance == DEFAULT_CLEARANCE["merry_go_round"]
+    assert stall.num_seats == DEFAULT_NUM_SEATS["merry_go_round"]
+    # One MeshFrame per pose lives on the single placement.
+    assert len(stall.model.meshes) == 1
+    assert len(stall.model.meshes[0]) == 32
+
+
+def test_ferris_wheel_kind_and_sprite_counts(tmp_path):
+    stall = build_stall(_flat_config("ferris_wheel"), _meshes(tmp_path))
+    assert stall.kind is StallKind.FLAT_RIDE
+    assert stall.stall_type == "ferris_wheel"
+    # 4 directions x 8 frames structure + 512 blank rider overlays, after previews.
+    assert stall.num_view_sprites == 32
+    assert stall.num_overlay_sprites == 512
+    assert stall.num_sprites == 547
+    assert stall.clearance == DEFAULT_CLEARANCE["ferris_wheel"]
+    assert stall.num_seats == DEFAULT_NUM_SEATS["ferris_wheel"]
+    # 8 spin poses on the placement (the example adds orbiting gondolas).
+    assert len(stall.model.meshes[0]) == 8
+
+
+def test_flat_ride_seats_override(tmp_path):
+    stall = build_stall(_flat_config(seats=24), _meshes(tmp_path))
+    assert stall.num_seats == 24
+
+
+def test_flat_ride_wrong_frame_count_rejected(tmp_path):
+    cfg = _flat_config()
+    cfg["animation"]["frames"] = cfg["animation"]["frames"][:8]
+    with pytest.raises(LoadError, match="exactly 32 animation frames"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_flat_ride_missing_animation_rejected(tmp_path):
+    cfg = _flat_config()
+    del cfg["animation"]
+    with pytest.raises(LoadError, match="animation"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_flat_ride_empty_frames_rejected(tmp_path):
+    cfg = _flat_config()
+    cfg["animation"] = {"frames": []}
+    with pytest.raises(LoadError, match="animation.frames"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_flat_ride_uneven_frame_entries_rejected(tmp_path):
+    frames = _spin_frames(32)
+    # Give the first pose two placements while the rest have one.
+    frames[0] = [
+        {"mesh_index": 0, "position": [0, 0, 0], "orientation": [0, 0, 0]},
+        {"mesh_index": 0, "position": [0, 0, 0], "orientation": [0, 0, 0]},
+    ]
+    cfg = _flat_config()
+    cfg["animation"] = {"frames": frames}
+    with pytest.raises(LoadError, match="same number of model entries"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_flat_ride_static_model_rejected(tmp_path):
+    cfg = _flat_config(model=[{"mesh_index": 0, "position": [0, 0, 0]}])
+    with pytest.raises(LoadError, match="animation.frames"):
+        build_stall(cfg, _meshes(tmp_path))
+
+
+def test_sells_on_flat_ride_rejected(tmp_path):
+    with pytest.raises(LoadError, match="merry_go_round"):
+        build_stall(_flat_config(sells="drink"), _meshes(tmp_path))
 
 
 def test_seats_on_stall_rejected(tmp_path):
@@ -193,6 +299,14 @@ def test_too_many_sells_rejected(tmp_path):
 def test_sells_on_facility_rejected(tmp_path, ride_type):
     with pytest.raises(LoadError, match="facility"):
         build_stall(_config(ride_type=ride_type, sells="drink"), _meshes(tmp_path))
+
+
+def test_sells_on_cash_machine_rejected(tmp_path):
+    # A cash machine paints like a shop but dispenses cash, so it cannot sell.
+    with pytest.raises(LoadError, match="cash_machine"):
+        build_stall(
+            _config(ride_type="cash_machine", sells="drink"), _meshes(tmp_path)
+        )
 
 
 def test_food_stall_without_sells_warns(tmp_path, caplog):

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 from .constants import (
     BUILDING_VIEW_SPRITES,
     FACILITY_VIEW_SPRITES,
+    FLAT_RIDE_SPECS,
     HAUNTED_HOUSE_OVERLAY_SPRITES,
     PREVIEW_SLOTS,
     SHOP_VIEW_SPRITES,
@@ -65,13 +66,18 @@ class Stall(ObjectIdentity):
             return FACILITY_VIEW_SPRITES
         if self.kind is StallKind.BUILDING:
             return BUILDING_VIEW_SPRITES
+        if self.kind is StallKind.FLAT_RIDE:
+            return FLAT_RIDE_SPECS[self.stall_type].structure_sprites
         return SHOP_VIEW_SPRITES
 
     @property
     def num_overlay_sprites(self) -> int:
-        """Animation overlays after the view sprites (haunted house ghosts)."""
+        """Animation overlays after the view sprites: the haunted house's blank
+        ghosts, or an animated flat ride's blank rider slots."""
         if self.stall_type == "haunted_house":
             return HAUNTED_HOUSE_OVERLAY_SPRITES
+        if self.kind is StallKind.FLAT_RIDE:
+            return FLAT_RIDE_SPECS[self.stall_type].rider_slots
         return 0
 
     @property

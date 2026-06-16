@@ -1,0 +1,26 @@
+id: openrct2rg.ride.cash_machine
+name: Cash Machine
+description: A free-standing ATM where guests withdraw cash
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Cash machine: a shop-painted ride (4 view sprites) that dispenses cash and
+# sells nothing, so it has no `sells` property. Clearance defaults to 64.
+ride_type: cash_machine
+
+# The cabinet uses the Remap1 material, so leave painting enabled and offer a
+# few colour presets.
+disable_painting: false
+car_colours:
+  - [grey, black, black]
+  - [dark_green, black, black]
+  - [dark_blue, black, black]
+  - [bordeaux_red, black, black]
+
+meshes:
+  - atm.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

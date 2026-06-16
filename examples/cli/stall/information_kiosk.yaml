@@ -1,0 +1,24 @@
+id: openrct2rg.ride.information_kiosk
+name: Information Kiosk
+description: A kiosk selling park maps and umbrellas
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Information kiosk: 4 view sprites. It may sell up to two items (maps and
+# umbrellas, by convention). Clearance defaults to 48.
+ride_type: information_kiosk
+sells: [map, umbrella]
+
+disable_painting: false
+car_colours:
+  - [bright_red, black, black]
+  - [dark_blue, black, black]
+  - [dark_green, black, black]
+
+meshes:
+  - information_kiosk.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}

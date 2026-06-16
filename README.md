@@ -1,16 +1,19 @@
 # OpenRCT2 Ride Generator
 
-A modern Blender add-on to author and export OpenRCT2 **stall, facility, and
-3x3 building ride objects** (food/drink stalls, shops, balloon stalls,
-information kiosks, toilets, first aid rooms, crooked houses, haunted houses,
-and circuses) from 3D meshes. Geometry is ray-traced into the isometric sprite
-sheets OpenRCT2 expects and packaged as a ready-to-install `.parkobj`.
+A modern Blender add-on to author and export OpenRCT2 **stall, facility, 3x3
+building, and animated flat ride objects** (food/drink stalls, shops, balloon
+stalls, information kiosks, cash machines, toilets, first aid rooms, crooked
+houses, haunted houses, circuses, merry-go-rounds, and ferris wheels) from 3D
+meshes. Geometry is ray-traced into the isometric sprite sheets OpenRCT2 expects
+and packaged as a ready-to-install `.parkobj`.
 
 Rendering is handled by the external [`openrct2-x7-renderer`](https://pypi.org/project/openrct2-x7-renderer/)
 package (an Embree-backed ray tracer shipping prebuilt, vendored wheels).
 
-Animated flat rides (merry-go-round, ferris wheel, …) are out of scope for
-now; their sprite layouts are bespoke per ride type and may be added later.
+Animated flat rides are driven by **Blender's animation timeline**: keyframe the
+spin and the add-on samples it into the ride's rotation frames. The merry-go-round
+(one symmetric spin ring) and the ferris wheel (four directions of a vertical
+wheel) are the first two; more flat rides may follow.
 
 ## Requirements
 
@@ -43,11 +46,14 @@ The config format is JSON or YAML (chosen by file extension). Relative
 | `shop`              | shop     | 4            |
 | `balloon_stall`     | shop     | 4            |
 | `information_kiosk` | shop     | 4            |
+| `cash_machine`      | shop     | 4            |
 | `toilets`           | facility | 6            |
 | `first_aid`         | facility | 6            |
-| `crooked_house`     | building | 4            |
-| `haunted_house`     | building | 4 (+72)      |
-| `circus`            | building | 4            |
+| `crooked_house`     | building  | 4            |
+| `haunted_house`     | building  | 4 (+72)      |
+| `circus`            | building  | 4            |
+| `merry_go_round`    | flat ride | 32 (+68)     |
+| `ferris_wheel`      | flat ride | 32 (+512)    |
 
 Building rides are the 3x3 flat rides whose whole structure is one sprite per
 view direction. The model is authored **centred on the middle tile** (the 3x3
@@ -55,6 +61,29 @@ footprint allows up to 3 tiles across) and the `seats` property sets the
 ride's capacity (defaults per type: 5 / 15 / 30). The haunted house's 72
 ghost-animation overlay slots are emitted blank, so the ride operates
 normally but shows no popping ghost.
+
+Animated flat rides are rides whose structure is a **vehicle sprite the engine
+spins** by cycling a ring of rotation frames. The structure is authored once and
+**animated** — in Blender, keyframe the spin and the add-on samples it into the
+ring; in a CLI config, list one pose per frame under `animation.frames`. The
+trailing rider slots are emitted blank (like the haunted house's ghosts), and
+`seats` sets capacity. Two layouts ship today:
+
+- **`merry_go_round`** — a 3x3 carousel, centred on the middle tile. The engine
+  folds the camera rotation out (`base + frame`), so the ring is a single
+  symmetric spin reused for every view direction: **32 poses**, a full turn
+  about +Y. Build it roughly **4-fold symmetric**. (+68 rider slots, default 16
+  seats.)
+- **`ferris_wheel`** — a 1x4 vertical wheel. It is *not* vertically symmetric, so
+  the engine stores **4 directions × 8 poses** (`base + direction*8 + frame`).
+  The A-frame legs are base-game graphics, so the object provides only the
+  rotating wheel and its gondolas (which orbit but stay upright); the 8 poses
+  span one gondola spacing so an 8-fold wheel loops seamlessly. (+512 rider
+  slots, default 32 seats.)
+
+> The example meshes are placeholders sized to render cleanly; a custom ferris
+> wheel's axle must line up with the vanilla A-frame supports, which is best
+> checked in-game.
 
 ### CLI Quickstart
 
@@ -69,7 +98,21 @@ uv run openrct2-ride-generator examples/cli/stall/toilets.yaml
 
 # 3x3 building flat ride (circus tent).
 uv run openrct2-ride-generator examples/cli/building/circus.yaml
+
+# Animated flat ride: 32-frame carousel spin (renders all 32 frames to test/).
+uv run openrct2-ride-generator --test examples/cli/building/merry_go_round.yaml
+
+# Animated flat ride: ferris wheel (4 directions x 8 frames to test/).
+uv run openrct2-ride-generator --test examples/cli/building/ferris_wheel.yaml
 ```
+
+The `examples/cli/` tree carries a worked example for every ride type: shops
+(`burger_bar`, `drinks_stand`, `souvenir_shop`, `information_kiosk`, `balloon`,
+`cash_machine`), facilities (`toilets`, `first_aid`), the 3x3 building rides
+(`crooked_house`, `haunted_house`, `circus`), and the animated flat rides
+(`merry_go_round`, `ferris_wheel`). The example meshes are regenerated by
+`scripts/gen_example_meshes.py` (which also emits the flat rides'
+`animation.frames` via `--print-spin`).
 
 Install the resulting `.parkobj` into OpenRCT2's `object/` directory and
 **restart** the game (it doesn't hot-reload objects).

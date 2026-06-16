@@ -1,0 +1,106 @@
+id: openrct2rg.ride.ferris_wheel
+name: Ferris Wheel
+description: A ferris wheel whose gondolas circle high above the park
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 1x4 flat ride. Unlike the merry-go-round (one symmetric ring reused
+# for every view), the wheel is NOT vertically symmetric, so the engine stores
+# 4 directions x 8 frames (FerrisWheel.cpp: base + direction*8 + frame); the
+# generator renders all four. The A-frame legs are base-game graphics, so the
+# object provides only the rotating wheel (mesh 0) and the gondolas (mesh 1,
+# placed 8 times). Each pose spins the wheel about its axle (Z) and orbits the
+# gondolas, which stay upright. The 8 frames span one gondola spacing (45 deg),
+# so the 8-fold-symmetric wheel loops seamlessly. 512 blank rider slots follow.
+# In Blender, keyframe this spin and the add-on samples the 8 poses for you.
+# Capacity (numSeats) defaults to 32; clearance to 176.
+ride_type: ferris_wheel
+
+# The rim is Remap1 (main colour) and the gondolas are Remap2 (trim), so
+# painting stays on with main + trim presets.
+disable_painting: false
+car_colours:
+  - [bright_red, white, black]
+  - [bright_green, yellow, black]
+  - [dark_blue, bright_yellow, black]
+
+meshes:
+  - ferris_wheel.obj
+  - gondola.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [3, 3.6, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.121, 5.721, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0, 6.6, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.121, 5.721, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-3, 3.6, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.121, 1.479, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0, 0.6, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.121, 1.479, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 5.625, 0]},
+       {mesh_index: 1, position: [2.986, 3.894, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.903, 5.919, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.294, 6.586, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.319, 5.503, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.986, 3.306, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.903, 1.281, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.294, 0.614, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.319, 1.697, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 11.25, 0]},
+       {mesh_index: 1, position: [2.942, 4.185, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.667, 6.094, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.585, 6.542, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.494, 5.267, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.942, 3.015, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.667, 1.106, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.585, 0.658, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.494, 1.933, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 16.875, 0]},
+       {mesh_index: 1, position: [2.871, 4.471, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.414, 6.246, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.871, 6.471, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.646, 5.014, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.871, 2.729, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.414, 0.954, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.871, 0.729, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.646, 2.186, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 22.5, 0]},
+       {mesh_index: 1, position: [2.772, 4.748, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.148, 6.372, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.148, 6.372, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.772, 4.748, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.772, 2.452, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.148, 0.828, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.148, 0.828, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.772, 2.452, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 28.125, 0]},
+       {mesh_index: 1, position: [2.646, 5.014, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.871, 6.471, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.414, 6.246, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.871, 4.471, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.646, 2.186, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.871, 0.729, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.414, 0.954, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.871, 2.729, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 33.75, 0]},
+       {mesh_index: 1, position: [2.494, 5.267, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.585, 6.542, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.667, 6.094, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.942, 4.185, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.494, 1.933, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.585, 0.658, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.667, 1.106, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.942, 3.015, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 3.6, 0], orientation: [0, 39.375, 0]},
+       {mesh_index: 1, position: [2.319, 5.503, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [0.294, 6.586, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-1.903, 5.919, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.986, 3.894, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-2.319, 1.697, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [-0.294, 0.614, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [1.903, 1.281, 0], orientation: [0, 0, 0]},
+       {mesh_index: 1, position: [2.986, 3.306, 0], orientation: [0, 0, 0]}]

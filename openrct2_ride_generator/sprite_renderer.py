@@ -13,22 +13,29 @@ from openrct2_object_common.export import ProgressFn
 from openrct2_object_common.sprite_render import (
     center_in_box,
     render_corner_anchored_view,
+    render_scene_view,
     trim,
 )
 from openrct2_x7_renderer.constants import TILE_SIZE
+from openrct2_x7_renderer.geometry import combine_model_world
 from openrct2_x7_renderer.mesh import Mesh
-from openrct2_x7_renderer.ray_trace import Context
-from openrct2_x7_renderer.types import IndexedImage
+from openrct2_x7_renderer.ray_trace import VIEWS, Context
+from openrct2_x7_renderer.types import IndexedImage, Model
 
 from .constants import (
     BUILDING_VIEW_SPRITES,
     FACILITY_VIEW_SPRITES,
+    FLAT_RIDE_SPECS,
     HAUNTED_HOUSE_OVERLAY_SPRITES,
     PREVIEW_BOX,
     SHOP_VIEW_SPRITES,
     STALL_TYPES,
     StallKind,
 )
+
+# The animated flat ride's structure is a vehicle sprite anchored at the entity
+# centre (the tile origin), not a tile corner.
+_FLAT_RIDE_ANCHOR = np.zeros(3, dtype=np.float64)
 
 
 def count_stall_sprites(stall_type: str) -> int:
@@ -39,6 +46,9 @@ def count_stall_sprites(stall_type: str) -> int:
     if STALL_TYPES[stall_type] is StallKind.BUILDING:
         extra = HAUNTED_HOUSE_OVERLAY_SPRITES if stall_type == "haunted_house" else 0
         return BUILDING_VIEW_SPRITES + extra
+    if STALL_TYPES[stall_type] is StallKind.FLAT_RIDE:
+        spec = FLAT_RIDE_SPECS[stall_type]
+        return spec.structure_sprites + spec.rider_slots
     return SHOP_VIEW_SPRITES
 
 
@@ -87,6 +97,42 @@ def render_building(
             progress(d + 1, BUILDING_VIEW_SPRITES)
     if stall_type == "haunted_house":
         images += [IndexedImage.blank(1, 1)] * HAUNTED_HOUSE_OVERLAY_SPRITES
+    return images
+
+
+def render_flat_ride(
+    context: Context,
+    meshes: list[Mesh],
+    model: Model,
+    stall_type: str,
+    progress: ProgressFn | None = None,
+) -> list[IndexedImage]:
+    """Render an animated flat ride sprite set: the structure ring (one image per
+    view direction and animation pose, in the engine's ``direction * frames +
+    frame`` order), followed by blank rider overlays.
+
+    The structure is a vehicle sprite anchored at the tile centre. Each pose
+    bakes one frame of the multi-frame ``model`` (the Blender-authored spin); the
+    camera direction is the world rotation ``VIEWS[d]``. The merry-go-round is
+    rotationally symmetric, so it stores a single direction (the engine folds the
+    camera rotation out and reuses the ring); the ferris wheel is not, so it
+    stores all four (``FerrisWheel.cpp`` reads ``base + direction * 8 + frame``).
+    The trailing rider slots are emitted blank, like the haunted house's ghosts,
+    so the engine never paints a stray peep image."""
+    spec = FLAT_RIDE_SPECS[stall_type]
+    # Each pose's baked mesh is the same across directions, so bake once per pose.
+    posed = [combine_model_world(meshes, model, frame=f) for f in range(spec.frames)]
+    images: list[IndexedImage] = []
+    total = spec.structure_sprites
+    for d in range(spec.directions):
+        for f, combined in enumerate(posed):
+            if combined.faces.shape[0] == 0:
+                images.append(IndexedImage.blank(1, 1))
+            else:
+                images.append(render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[d]))
+            if progress is not None:
+                progress(d * spec.frames + f + 1, total)
+    images += [IndexedImage.blank(1, 1)] * spec.rider_slots
     return images
 
 

@@ -11,11 +11,12 @@ from openrct2_ride_generator.sprite_renderer import (
     count_stall_sprites,
     render_building,
     render_facility,
+    render_flat_ride,
     render_shop,
     split_door_strip,
 )
 from openrct2_x7_renderer.mesh import Mesh, load_mesh
-from openrct2_x7_renderer.types import IndexedImage
+from openrct2_x7_renderer.types import IndexedImage, MeshFrame, Model
 
 _TRI = "v 0 0 0\nv 0.2 0 0\nv 0 1 0\nf 1 2 3\n"
 
@@ -41,12 +42,17 @@ def _img(rows, x_offset=0, y_offset=0):
 def test_count_stall_sprites():
     assert count_stall_sprites("food_stall") == 4
     assert count_stall_sprites("shop") == 4
+    assert count_stall_sprites("cash_machine") == 4
     assert count_stall_sprites("toilets") == 6
     assert count_stall_sprites("first_aid") == 6
     assert count_stall_sprites("crooked_house") == 4
     assert count_stall_sprites("circus") == 4
     # 4 building views + 72 ghost overlays.
     assert count_stall_sprites("haunted_house") == 76
+    # 32 structure rotation frames + 68 blank rider overlays.
+    assert count_stall_sprites("merry_go_round") == 100
+    # 4 directions x 8 frames + 512 blank rider overlays.
+    assert count_stall_sprites("ferris_wheel") == 544
 
 
 def test_render_shop_four_views(tmp_path):
@@ -79,6 +85,53 @@ def test_render_building_four_views(tmp_path):
     assert len(images) == 4
     assert sum(1 for e in ctx.events if e == "begin") == 4
     assert progress == [(1, 4), (2, 4), (3, 4), (4, 4)]
+
+
+def _spin_model(n, mesh_index=0):
+    """A single placement carrying n rotation poses (one MeshFrame each)."""
+    frames = [
+        MeshFrame(mesh_index=mesh_index, orientation=np.array([360.0 * i / n, 0, 0]))
+        for i in range(n)
+    ]
+    return Model(meshes=[frames])
+
+
+def test_render_flat_ride_frames_and_blank_overlays(tmp_path):
+    ctx = FakeContext()
+    progress = []
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(32), "merry_go_round",
+        progress=progress_fn(progress),
+    )
+    # 32 rendered structure frames + 68 blank rider overlays.
+    assert len(images) == 100
+    assert sum(1 for e in ctx.events if e == "begin") == 32
+    assert progress[0] == (1, 32) and progress[-1] == (32, 32)
+    assert all(img.width == 1 and img.height == 1 for img in images[32:])
+
+
+def test_render_flat_ride_ferris_four_directions(tmp_path):
+    ctx = FakeContext()
+    progress = []
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(8), "ferris_wheel",
+        progress=progress_fn(progress),
+    )
+    # 4 directions x 8 frames structure + 512 blank rider overlays.
+    assert len(images) == 544
+    assert sum(1 for e in ctx.events if e == "begin") == 32
+    assert progress[-1] == (32, 32)
+    assert all(img.width == 1 and img.height == 1 for img in images[32:])
+
+
+def test_render_flat_ride_empty_pose_blanks(tmp_path):
+    # A placement that resolves to no geometry (mesh_index -1) renders a blank
+    # without opening a scene.
+    ctx = FakeContext()
+    images = render_flat_ride(ctx, [_mesh(tmp_path, _TRI)], _spin_model(32, -1), "merry_go_round")
+    assert len(images) == 100
+    assert sum(1 for e in ctx.events if e == "begin") == 0
+    assert all(img.width == 1 and img.height == 1 for img in images[:32])
 
 
 def test_render_building_haunted_house_appends_blank_overlays(tmp_path):

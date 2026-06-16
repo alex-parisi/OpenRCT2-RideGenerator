@@ -17,6 +17,7 @@ from openrct2_x7_renderer.types import IndexedImage
 from .constants import (
     BUILDING_CAR_ENTRY,
     BUILDING_TYPES_WITH_WAYPOINTS,
+    FLAT_RIDE_SPECS,
     LOADING_WAYPOINTS,
     PREVIEW_SLOTS,
     StallKind,
@@ -25,14 +26,26 @@ from .sprite_renderer import (
     center_preview,
     render_building,
     render_facility,
+    render_flat_ride,
     render_shop,
 )
 from .types import Stall
 
 
 def _build_car_entry(stall: Stall) -> dict[str, Any]:
-    """The building ride's single (never vehicle-drawn) car entry."""
-    car: dict[str, Any] = dict(BUILDING_CAR_ENTRY)
+    """The building / flat ride's single car entry.
+
+    Building rides never draw the car as a vehicle (the track painter reads
+    base_image_id directly); animated flat rides draw the structure through the
+    vehicle path and cycle its rotation frames."""
+    if stall.kind is StallKind.FLAT_RIDE:
+        spec = FLAT_RIDE_SPECS[stall.stall_type]
+        car: dict[str, Any] = dict(spec.car)
+        car["loadingWaypoints"] = [[list(p) for p in wp] for wp in spec.waypoints]
+    else:
+        car = dict(BUILDING_CAR_ENTRY)
+        if stall.stall_type in BUILDING_TYPES_WITH_WAYPOINTS:
+            car["loadingWaypoints"] = [[list(p) for p in wp] for wp in LOADING_WAYPOINTS]
     car["numSeats"] = stall.num_seats
     # The colour window shows the trim/tertiary pickers only when the car
     # opts in; derive that from the remap regions the materials actually use.
@@ -41,32 +54,37 @@ def _build_car_entry(stall: Stall) -> dict[str, Any]:
         car["hasAdditionalColour1"] = True
     if 3 in regions:
         car["hasAdditionalColour2"] = True
-    if stall.stall_type in BUILDING_TYPES_WITH_WAYPOINTS:
-        car["loadingWaypoints"] = [[list(p) for p in wp] for wp in LOADING_WAYPOINTS]
     return car
 
 
 def build_stall_json(stall: Stall) -> dict[str, Any]:
     out = object_json_header_for(stall, "ride")
-    building = stall.kind is StallKind.BUILDING
+    # Building rides and animated flat rides are "gentle" rides that carry their
+    # own car entry; shops and facilities are "stall" rides the engine fills in.
+    has_car = stall.kind in (StallKind.BUILDING, StallKind.FLAT_RIDE)
 
     properties: dict[str, Any] = {
         "type": stall.stall_type,
-        "category": "gentle" if building else "stall",
+        "category": "gentle" if has_car else "stall",
         "clearance": stall.clearance,
     }
-    if building:
-        # The whole-building sprites overflow the build-menu tab at full size.
+    if has_car:
+        # The whole-structure sprites overflow the build-menu tab at full size.
         properties["tabScale"] = 0.5
-        properties["hasShelter"] = True
+        # Buildings always shelter guests; flat rides declare it per type.
+        if stall.kind is StallKind.FLAT_RIDE:
+            if FLAT_RIDE_SPECS[stall.stall_type].has_shelter:
+                properties["hasShelter"] = True
+        else:
+            properties["hasShelter"] = True
     if stall.sells:
         properties["sells"] = stall.sells[0] if len(stall.sells) == 1 else list(stall.sells)
     if stall.disable_painting:
         properties["disablePainting"] = True
     properties["carsPerFlatRide"] = 1
     # The engine synthesizes the whole car entry for shop/facility ride types,
-    # so only building rides emit a "cars" block.
-    if building:
+    # so only the car-bearing rides emit a "cars" block.
+    if has_car:
         properties["cars"] = _build_car_entry(stall)
     properties["carColours"] = [[list(preset)] for preset in stall.car_colours]
     if stall.build_menu_priority:
@@ -76,7 +94,7 @@ def build_stall_json(stall: Stall) -> dict[str, Any]:
     out["strings"] = object_strings(
         stall.name,
         description=stall.description,
-        capacity=f"{stall.num_seats} guests" if building else None,
+        capacity=f"{stall.num_seats} guests" if has_car else None,
     )
     return out
 
@@ -85,6 +103,12 @@ def _render_views(
     stall: Stall, context: Context, progress: ProgressFn | None = None
 ) -> list[IndexedImage]:
     """Render the stall's view sprites in the engine's image order."""
+    if stall.kind is StallKind.FLAT_RIDE:
+        # The flat ride is posed per frame (its authored spin), so it renders
+        # straight from the multi-frame model rather than a single baked mesh.
+        return render_flat_ride(
+            context, stall.meshes, stall.model, stall.stall_type, progress
+        )
     combined = combine_model_world(stall.meshes, stall.model)
     if stall.kind is StallKind.FACILITY:
         door = (

@@ -18,7 +18,13 @@ from openrct2_object_common.blender.props import (
     simple_items,
     unregister_settings,
 )
-from openrct2_ride_generator.constants import COLOR_NAMES, SHOP_ITEMS, STALL_TYPES, StallKind
+from openrct2_ride_generator.constants import (
+    COLOR_NAMES,
+    SHOP_ITEMS,
+    SHOP_SELL_TYPES,
+    STALL_TYPES,
+    StallKind,
+)
 
 STALL_TYPE_ITEMS = [
     ("food_stall", "Food Stall", "Sells food items (4 view sprites)"),
@@ -26,11 +32,16 @@ STALL_TYPE_ITEMS = [
     ("shop", "Shop", "Sells souvenirs: balloons, toys, hats, ... (4 view sprites)"),
     ("balloon_stall", "Balloon Stall", "The dedicated balloon stall type (4 view sprites)"),
     ("information_kiosk", "Information Kiosk", "Sells maps and umbrellas (4 view sprites)"),
+    ("cash_machine", "Cash Machine", "ATM that dispenses cash and sells nothing (4 view sprites)"),
     ("toilets", "Toilets", "Facility guests walk into (6 view sprites, door faces +X)"),
     ("first_aid", "First Aid Room", "Facility guests walk into (6 view sprites, door faces +X)"),
     ("crooked_house", "Crooked House", "3x3 building ride, model centred on the middle tile"),
     ("haunted_house", "Haunted House", "3x3 building ride (ghost animation left blank)"),
     ("circus", "Circus", "3x3 building ride, model centred on the middle tile"),
+    ("merry_go_round", "Merry-Go-Round",
+     "Animated 3x3 flat ride: keyframe a 360-degree spin; the add-on samples it"),
+    ("ferris_wheel", "Ferris Wheel",
+     "Animated 1x4 flat ride: keyframe the wheel spin (gondolas stay upright)"),
 ]
 
 SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITEMS))
@@ -54,6 +65,15 @@ def is_facility(stall_type: str) -> bool:
 
 def is_building(stall_type: str) -> bool:
     return STALL_TYPES[stall_type] is StallKind.BUILDING
+
+
+def is_flat_ride(stall_type: str) -> bool:
+    return STALL_TYPES[stall_type] is StallKind.FLAT_RIDE
+
+
+def can_sell(stall_type: str) -> bool:
+    """Shop-kind types that may carry a `sells` item (the cash machine cannot)."""
+    return stall_type in SHOP_SELL_TYPES
 
 
 class VGRMaterialSettings(SharedMaterialSettings):

@@ -24,3 +24,33 @@ newmtl DoorWood
 Kd 0.30 0.20 0.10
 Ks 0.1 0.1 0.1
 Ns 10.0
+
+newmtl Metal
+Kd 0.62 0.64 0.68
+Ks 0.4 0.4 0.4
+Ns 60.0
+
+newmtl Screen
+Kd 0.10 0.30 0.32
+Ks 0.5 0.5 0.5
+Ns 80.0
+
+newmtl Red
+Kd 0.78 0.12 0.12
+Ks 0.1 0.1 0.1
+Ns 10.0
+
+newmtl White
+Kd 0.88 0.88 0.86
+Ks 0.05 0.05 0.05
+Ns 5.0
+
+newmtl Glass
+Kd 0.55 0.70 0.78
+Ks 0.6 0.6 0.6
+Ns 90.0
+
+newmtl Canvas
+Kd 0.78 0.74 0.64
+Ks 0.05 0.05 0.05
+Ns 5.0

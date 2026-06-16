@@ -1,0 +1,63 @@
+id: openrct2rg.ride.merry_go_round
+name: Carousel
+description: A merry-go-round whose horses spin beneath a striped canopy
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# Animated 3x3 flat ride. The whole carousel is one vehicle sprite that the
+# engine spins by cycling a ring of rotation frames, so the structure is
+# authored ONCE (carousel.obj, centred on the middle tile) and the animation
+# below supplies one pose per rotation frame: a full 360-degree turn about +Y
+# in 32 even steps (merry_go_round needs exactly 32). In Blender you keyframe
+# the spin and the add-on samples these 32 poses for you; here they are written
+# out explicitly. The engine reuses the ring for every view direction, so the
+# carousel is built 4-fold symmetric. Capacity (numSeats) defaults to 16.
+ride_type: merry_go_round
+
+# The canopy + saddle blankets are Remap1 (main colour) and the base platform is
+# Remap2 (trim colour), so painting stays on with main + trim presets.
+disable_painting: false
+car_colours:
+  - [bright_red, yellow, black]
+  - [bright_pink, white, black]
+  - [light_blue, bright_yellow, black]
+
+meshes:
+  - carousel.obj
+
+animation:
+  frames:
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [11.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [22.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [33.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [45, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [56.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [67.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [78.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [90, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [101.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [112.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [123.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [135, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [146.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [157.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [168.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [180, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [191.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [202.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [213.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [225, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [236.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [247.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [258.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [270, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [281.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [292.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [303.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [315, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [326.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [337.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [348.75, 0, 0]}]

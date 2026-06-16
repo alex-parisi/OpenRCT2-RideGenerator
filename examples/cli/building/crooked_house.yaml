@@ -1,0 +1,24 @@
+id: openrct2rg.ride.crooked_house
+name: Crooked House
+description: A topsy-turvy cottage that leaves guests dizzy
+authors: [OpenRCT2-RideGenerator]
+version: "1.0"
+
+output_directory: .
+
+# 3x3 building flat ride: 4 view sprites of the whole house, anchored at the
+# middle tile. Capacity (numSeats) defaults per type; crooked house = 5.
+ride_type: crooked_house
+
+# The crooked roof is Remap1, so painting stays on with main-colour presets.
+disable_painting: false
+car_colours:
+  - [saturated_red, black, black]
+  - [dark_green, black, black]
+  - [dark_yellow, black, black]
+
+meshes:
+  - crooked_house.obj
+
+model:
+  - {mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}
