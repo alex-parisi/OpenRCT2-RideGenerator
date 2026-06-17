@@ -71,9 +71,12 @@ def _load_model(value: Any, num_meshes: int) -> tuple[Model, Model]:
 def _load_flat_ride_model(root: dict[str, Any], num_meshes: int, ride_type: str) -> Model:
     """Parse an animated flat ride's spin into a multi-frame Model.
 
-    The structure is authored as a 360-degree rotation; the add-on (or this
-    config's ``animation.frames`` list) supplies one pose -- a full ``model``
-    placement list -- per rotation frame. Each placement then carries one
+    The add-on (or this config's ``animation.frames`` list) supplies one pose --
+    a full ``model`` placement list -- per rotation frame. Most rides author one
+    full revolution, but the single-direction symmetric rides span only one
+    symmetry period (the engine loops their ring ``structure_loops_per_turn`` times
+    per turn: the carousel's 32 poses cover 90 degrees, the twist's 24 cover 40),
+    so the structure rotates at the riders' rate. Each placement carries one
     :class:`MeshFrame` per pose, exactly the shape :func:`combine_model_world`
     bakes when asked for a given frame. The frame count must match the ride's
     declared rotation-frame count so the rendered ring lines up with the

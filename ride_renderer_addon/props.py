@@ -58,6 +58,45 @@ STALL_TYPE_ITEMS = [
      "Animated 3x3 flat ride: keyframe one ring's 360-degree tumble (the engine spawns four)"),
 ]
 
+# Per-ride animation guidance shown in the N-panel when a flat ride is selected.
+# Each ride type has its own motion "style" the engine expects; the animator must
+# keyframe THAT motion (a 360 spin is only right for some of them). Keep this in
+# sync with the "Animating in Blender" table in README.md as rides are added.
+FLAT_RIDE_ANIM_HINTS: dict[str, tuple[str, ...]] = {
+    "merry_go_round": (
+        "Keyframe one full 360-degree spin about +Y.",
+        "One view serves all cameras: keep it ~4-fold symmetric.",
+    ),
+    "ferris_wheel": (
+        "Keyframe the wheel's full turn; gondolas orbit but stay upright.",
+    ),
+    "twist": (
+        "Keyframe one full 360-degree spin about +Y; build it 9-fold symmetric.",
+        "Use ONE rider-pair: the engine clones it around the nine cups.",
+    ),
+    "enterprise": (
+        "Keyframe the tilted wheel's full turn; pods are rigid (riders invert).",
+    ),
+    "motion_simulator": (
+        "Keyframe the pod's pitch/roll - NOT a spin.",
+        "Frames 0-3 are the level restraint-load pose, then the motion.",
+    ),
+    "swinging_ship": (
+        "Keyframe a back-and-forth swing - NOT a spin.",
+        "One Rider object per bench row, named in row order.",
+    ),
+    "space_rings": (
+        "Keyframe one ring's full tumble about its axle; the engine spawns four.",
+    ),
+}
+
+
+def flat_ride_anim_hints(stall_type: str) -> tuple[str, ...]:
+    """The animation guidance lines for a flat ride type (empty if not a flat ride
+    or none is registered). Used by the N-panel; mirror README's quirks table."""
+    return FLAT_RIDE_ANIM_HINTS.get(stall_type, ())
+
+
 SELLS_ITEMS = [("NONE", "None", "Sells nothing")] + simple_items(sorted(SHOP_ITEMS))
 
 COLOUR_ITEMS = simple_items(COLOR_NAMES)
@@ -104,8 +143,8 @@ _ROLE_DEFS = {
         "Rider",
         "A seated rider-pair the engine draws over the structure, recoloured per "
         "rider by the peep's t-shirt colour (give the two riders Remap 1 / Remap 2 "
-        "materials); sampled into the ride's rider ring as it spins "
-        "(merry-go-round and ferris wheel only)",
+        "materials); sampled into the ride's rider ring as it animates "
+        "(rider-bearing flat rides only)",
         3,
     ),
 }

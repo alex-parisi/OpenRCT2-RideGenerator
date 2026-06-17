@@ -249,6 +249,15 @@ class FlatRideSpec:
     # (plane, swing) structure sprite (SwingingShip.cpp `base + plane*9 + swing*18`,
     # rider = base + frameNum), so each rendered ship is followed by 8 blanks.
     blank_sub_slots: int = 0
+    # How many times the engine loops the structure ring per *physical* revolution
+    # of the ride. The single-direction symmetric rides reuse one stored period: the
+    # twist is 9-fold symmetric so `structureFrameNum = frameNum % 24` loops 9 times
+    # while the riders sweep the full 216-frame turn (Twist.cpp), and the carousel is
+    # 4-fold symmetric so `rotationOffset & 0x1F` loops 32 images 4 times per 128-step
+    # turn (MerryGoRound.cpp). So the structure's `frames` poses span only
+    # `360 / structure_loops_per_turn` degrees -- one symmetry period -- while the
+    # riders span the full turn. Every other ride stores its motion outright (1).
+    structure_loops_per_turn: int = 1
     # The *rider ring* the trailing `rider_slots` form: how the engine indexes the
     # visible-rider overlays the object may provide (left blank when the object has
     # no rider geometry). The riders are a separate seated rider-pair the engine
@@ -268,6 +277,18 @@ class FlatRideSpec:
     # carousel (single direction) and ferris (`base + 32 + direction*128 + frame`)
     # are both direction-major.
     rider_direction_minor: bool = False
+    # Render the rider ring with the structure present as a depth-mask occluder, so
+    # each rider sprite is pre-clipped to the pixels visible *in front of* the
+    # structure (the trick the vehicle generator uses for peeps behind a car). The
+    # engine always paints rider overlays on top of the structure with no depth
+    # test, so without this the far-side riders draw over the canopy. Only enabled
+    # where the structure pose that occludes rider frame ``f`` is known: the twist,
+    # whose rider offsets are multiples of the 24-frame structure period, so a rider
+    # at phase ``f`` is always shown with the structure in pose ``f % frames`` (and
+    # the ride's 9-fold symmetry makes that pose's geometry exact at the rider's
+    # angle). Other rider rides can opt in once their f -> structure-pose map is
+    # worked out.
+    rider_masked_by_structure: bool = False
 
     @property
     def structure_sprites(self) -> int:
@@ -299,6 +320,7 @@ FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
     # (ring positions 13..80 of 128), reused for every view like the structure.
     "merry_go_round": FlatRideSpec(
         frames=32, directions=1, rider_slots=68, rider_frames=68, rider_directions=1,
+        structure_loops_per_turn=4,
     ),
     # The ferris wheel's 512 rider slots are one gondola's pair orbiting the axle
     # upright, stored 4 directions x 128 poses (FerrisWheel.cpp base + 32 +
@@ -312,7 +334,8 @@ FLAT_RIDE_SPECS: dict[str, FlatRideSpec] = {
     # phases of the full turn, single view.
     "twist": FlatRideSpec(
         frames=24, directions=1, rider_slots=216, rotation_mode=1,
-        rider_frames=216, rider_directions=1,
+        rider_frames=216, rider_directions=1, structure_loops_per_turn=9,
+        rider_masked_by_structure=True,
     ),
     # Enterprise.cpp: `base + (animationFrame << 2) + direction`, a tilted wheel
     # stored as 4 directions x 49 frames interleaved (direction is the fast index),

@@ -9,9 +9,12 @@ material names drive remap classification (Remap1/2/3 are recolourable).
 
 Run from anywhere:  uv run python scripts/gen_example_meshes.py
 
-The merry-go-round's 32-pose spin lives in merry_go_round.yaml's
-`animation.frames`; pass --print-spin to re-emit that block (one 360-degree turn
-about +Y in `merry_go_round` rotation-frame steps).
+Each flat ride's structure spin lives in its `<ride>.yaml` `animation.frames`;
+pass --print-spin <ride> to re-emit that block. Note the single-direction
+symmetric rides span only ONE symmetry period, not a full turn: the carousel's 32
+poses cover 90 degrees (looped 4x per revolution) and the twist's 24 poses cover
+40 degrees (looped 9x), matching the riders' rate -- a full turn baked into those
+poses would spin the structure several times too fast relative to its riders.
 """
 from __future__ import annotations
 
@@ -24,6 +27,10 @@ STALL = REPO / "examples" / "cli" / "stall"
 BUILD = REPO / "examples" / "cli" / "building"
 
 MERRY_GO_ROUND_FRAMES = 32
+# MerryGoRound.cpp loops the 32 structure images 4x per 128-step revolution
+# (`rotationOffset & 0x1F`), so the platform is 4-fold symmetric and the 32 frames
+# span one quarter turn (90 deg); the riders sweep the full turn separately.
+MERRY_GO_ROUND_SYMMETRY = 4
 
 
 class ObjBuilder:
@@ -691,8 +698,13 @@ def _space_rings_frames() -> list[str]:
 
 def _merry_go_round_frames() -> list[str]:
     lines = []
+    # The structure spans ONE symmetry period (90 deg), not a full turn: the engine
+    # loops these 32 images MERRY_GO_ROUND_SYMMETRY times per revolution, so the
+    # platform must rotate at the riders' rate (full turn / 128) -- a full 360 here
+    # would spin the structure 4x too fast relative to its riders.
+    span = 360.0 / MERRY_GO_ROUND_SYMMETRY
     for i in range(MERRY_GO_ROUND_FRAMES):
-        yaw = round(360.0 * i / MERRY_GO_ROUND_FRAMES, 3)
+        yaw = round(span * i / MERRY_GO_ROUND_FRAMES, 3)
         lines.append(
             f"    - [{{mesh_index: 0, position: [0, 0, 0], "
             f"orientation: [{yaw:g}, 0, 0]}}]"
@@ -825,8 +837,14 @@ def _swinging_ship_rider_rows() -> list[str]:
 
 def _twist_frames() -> list[str]:
     lines = []
+    # The structure spans ONE cup spacing (360/9 = 40 deg), not a full turn: the
+    # engine loops these 24 images TWIST_CUPS times per revolution
+    # (`structureFrameNum = frameNum % 24`) while the riders sweep the full 216-frame
+    # turn, so the platform must rotate at the riders' rate (full turn / 216). A full
+    # 360 here would spin the cups 9x too fast relative to the riders in them.
+    span = 360.0 / TWIST_CUPS
     for i in range(TWIST_FRAMES):
-        yaw = round(360.0 * i / TWIST_FRAMES, 3)
+        yaw = round(span * i / TWIST_FRAMES, 3)
         lines.append(
             f"    - [{{mesh_index: 0, position: [0, 0, 0], "
             f"orientation: [{yaw:g}, 0, 0]}}]"

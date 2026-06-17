@@ -8,17 +8,22 @@ tile's per-direction reference corner. Facilities (Facility.cpp) paint
 doorway sprite plus a building-body overlay so peeps sort into the doorway.
 """
 
+from collections.abc import Callable
+
 import numpy as np
 from openrct2_object_common.export import ProgressFn
 from openrct2_object_common.sprite_render import (
+    IDENTITY3,
+    add_split_ghost,
     center_in_box,
+    corner_anchors,
     render_corner_anchored_view,
     trim,
 )
-from openrct2_x7_renderer.constants import TILE_SIZE
-from openrct2_x7_renderer.geometry import combine_model_world
+from openrct2_x7_renderer.constants import TILE_SIZE, MeshFlag
+from openrct2_x7_renderer.geometry import combine_model_world, split_mesh_by_ghost
 from openrct2_x7_renderer.mesh import Mesh
-from openrct2_x7_renderer.ray_trace import Context
+from openrct2_x7_renderer.ray_trace import VIEWS, Context
 from openrct2_x7_renderer.types import IndexedImage, Model
 
 from .constants import (
@@ -107,6 +112,45 @@ def _render_pose(context: Context, combined: Mesh, direction: int) -> IndexedIma
     return render_corner_anchored_view(context, combined, direction)
 
 
+def _render_masked_pose(
+    context: Context, drawn: Mesh, occluder: Mesh, direction: int
+) -> IndexedImage:
+    """Render ``drawn`` corner-anchored under ``direction`` with ``occluder``
+    present only as a depth mask (``MeshFlag.MASK``): the occluder blocks rays but
+    is not itself drawn, so ``drawn``'s pixels hidden behind it are clipped from
+    the sprite.
+
+    This is the rider-occlusion trick the vehicle generator uses for peeps behind a
+    car (``placement.add_model_to_scene`` with ``mask=1``), applied to a flat
+    ride's rider ring: the engine paints rider overlays on top of the structure
+    with no depth test, so pre-clipping each rider against the structure is the only
+    way far-side riders read as occluded by the canopy. Anchoring mirrors
+    :func:`render_corner_anchored_view` (centre tile, corner-anchored)."""
+    if drawn.faces.shape[0] == 0:
+        return IndexedImage.blank(1, 1)
+    ox, oz = corner_anchors(TILE_SIZE)[direction]
+    translation = np.array([-ox, 0.0, -oz], dtype=np.float64)
+    with context.begin_render() as scene:
+        # The occluder first, flagged as a mask (contributes depth, not drawn); the
+        # ghost split keeps any see-through structure materials see-through.
+        for sub_mesh, mask in split_mesh_by_ghost(occluder, int(MeshFlag.MASK)):
+            scene.add_model(sub_mesh, IDENTITY3, translation, mask)
+        add_split_ghost(scene, drawn, translation)
+        with scene.finalize() as ready:
+            return ready.render_view(VIEWS[direction])
+
+
+def _structure_pose_for_rider(frames: int) -> Callable[[int], int]:
+    """Map a rider-ring frame to the structure pose that occludes it. For the
+    twist the rider offsets are multiples of the structure period, so rider frame
+    ``f`` is shown with structure pose ``f % frames``."""
+
+    def index(f: int) -> int:
+        return f % frames
+
+    return index
+
+
 def _render_ring(
     context: Context,
     meshes: list[Mesh],
@@ -119,9 +163,16 @@ def _render_ring(
     progress_done: int = 0,
     progress_total: int = 0,
     sub_models: list[Model] | None = None,
+    occluder_posed: list[Mesh] | None = None,
+    occluder_for_frame: Callable[[int], int] | None = None,
 ) -> list[IndexedImage]:
     """Render one ring of a flat ride: a multi-frame ``model`` baked pose by pose
     and rendered from each view direction, in the engine's image order.
+
+    When ``occluder_posed`` and ``occluder_for_frame`` are given, each pose is
+    rendered with ``occluder_posed[occluder_for_frame(f)]`` present as a depth mask
+    (see :func:`_render_masked_pose`) -- the rider ring pre-clipped against the
+    structure so far-side riders read as occluded rather than painted on top.
 
     ``direction_minor`` selects that order: direction-major (``image = direction *
     frames + frame``, the ferris/carousel layout) or direction-minor (``image =
@@ -146,7 +197,12 @@ def _render_ring(
     images: list[IndexedImage] = []
     total = progress_total or (len(order) * (1 + blank_sub_slots))
     for d, f in order:
-        images.append(_render_pose(context, posed[f], d))
+        if occluder_posed is not None and occluder_for_frame is not None:
+            images.append(
+                _render_masked_pose(context, posed[f], occluder_posed[occluder_for_frame(f)], d)
+            )
+        else:
+            images.append(_render_pose(context, posed[f], d))
         for sub in range(blank_sub_slots):
             if sub_posed is not None and sub < len(sub_posed):
                 images.append(_render_pose(context, sub_posed[sub][f], d))
@@ -182,7 +238,15 @@ def render_flat_ride(
     interleaves its riders into the sub-slots after each ship sprite (one
     ``rider_sub_models`` model per bench row). Either may be absent, in which case
     those slots are emitted blank, like the haunted house's ghosts, so the engine
-    never paints a stray peep image."""
+    never paints a stray peep image.
+
+    When ``spec.rider_masked_by_structure`` is set (the twist), the rider ring is
+    rendered with the structure as a depth-mask occluder so far-side riders are
+    clipped behind the canopy instead of painted over it. The structure pose that
+    occludes rider frame ``f`` is ``f % spec.frames`` -- the twist's rider offsets
+    are multiples of the structure period, so a rider at phase ``f`` is always shown
+    with the structure in that pose, and the ride's 9-fold symmetry makes its
+    geometry exact at the rider's angle."""
     spec = FLAT_RIDE_SPECS[stall_type]
     rider_sub_models = rider_sub_models or []
     structure_total = spec.structure_sprites
@@ -199,10 +263,18 @@ def render_flat_ride(
         sub_models=sub_models,
     )
     if render_riders:
+        occluder_posed: list[Mesh] | None = None
+        occluder_index: Callable[[int], int] | None = None
+        if spec.rider_masked_by_structure:
+            occluder_posed = [
+                combine_model_world(meshes, model, frame=f) for f in range(spec.frames)
+            ]
+            occluder_index = _structure_pose_for_rider(spec.frames)
         images += _render_ring(
             context, meshes, rider_model, spec.rider_directions, spec.rider_frames,
             spec.rider_direction_minor, 0, progress,
             progress_done=structure_total, progress_total=total,
+            occluder_posed=occluder_posed, occluder_for_frame=occluder_index,
         )
     else:
         images += [IndexedImage.blank(1, 1)] * spec.rider_slots

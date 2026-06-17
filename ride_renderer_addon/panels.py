@@ -16,7 +16,14 @@ from openrct2_object_common.blender.object_panel import (
 )
 from openrct2_object_common.blender.registration import register_classes, unregister_classes
 
-from .props import can_sell, is_building, is_facility, is_flat_ride, supports_riders
+from .props import (
+    can_sell,
+    flat_ride_anim_hints,
+    is_building,
+    is_facility,
+    is_flat_ride,
+    supports_riders,
+)
 
 
 class VGR_UL_presets(UIList):
@@ -53,8 +60,9 @@ class VGR_PT_stall(Panel):
             box.label(text="Door faces +X; give the doorway object the Door role.", icon="INFO")
         elif is_flat_ride(ss.stall_type):
             box.prop(ss, "seats")
-            box.label(text="3x3 footprint, centred on the origin tile.", icon="INFO")
-            box.label(text="Keyframe a 360-degree spin over the scene frame range.", icon="INFO")
+            box.label(text="Model centred on the origin tile.", icon="INFO")
+            for line in flat_ride_anim_hints(ss.stall_type):
+                box.label(text=line, icon="INFO")
             if supports_riders(ss.stall_type):
                 box.label(text="Give riders the Rider role for visible riders.", icon="INFO")
         elif is_building(ss.stall_type):

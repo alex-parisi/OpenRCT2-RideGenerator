@@ -8,12 +8,15 @@ output_directory: .
 
 # Animated 3x3 flat ride. The whole carousel is one vehicle sprite that the
 # engine spins by cycling a ring of rotation frames, so the structure is
-# authored ONCE (carousel.obj, centred on the middle tile) and the animation
-# below supplies one pose per rotation frame: a full 360-degree turn about +Y
-# in 32 even steps (merry_go_round needs exactly 32). In Blender you keyframe
-# the spin and the add-on samples these 32 poses for you; here they are written
-# out explicitly. The engine reuses the ring for every view direction, so the
-# carousel is built 4-fold symmetric. Capacity (numSeats) defaults to 16.
+# authored ONCE (carousel.obj, centred on the middle tile). The carousel is
+# 4-fold symmetric, and the engine loops these 32 frames FOUR times per
+# revolution (MerryGoRound.cpp: rotationOffset & 0x1F) while the riders sweep the
+# full turn. So the 32 poses below span only ONE quarter turn (360/4 = 90
+# degrees) about +Y in 32 even steps, NOT a full turn -- the platform must rotate
+# at the riders' rate, or the horses spin 4x too fast. The single ring is reused
+# for every view direction. In Blender you keyframe one full turn and the add-on
+# samples the structure's 90-degree slice and the riders' full turn for you.
+# Capacity (numSeats) defaults to 16.
 ride_type: merry_go_round
 
 # The canopy + saddle blankets are Remap1 (main colour) and the base platform is
@@ -31,37 +34,37 @@ meshes:
 animation:
   frames:
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [2.812, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [5.625, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [8.438, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [11.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [14.062, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [16.875, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [19.688, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [22.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [25.312, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [28.125, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [30.938, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [33.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [36.562, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [39.375, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [42.188, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [45, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [47.812, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [50.625, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [53.438, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [56.25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [59.062, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [61.875, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [64.688, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [67.5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [70.312, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [73.125, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [75.938, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [78.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [90, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [101.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [112.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [123.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [135, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [146.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [157.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [168.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [180, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [191.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [202.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [213.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [225, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [236.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [247.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [258.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [270, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [281.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [292.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [303.75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [315, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [326.25, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [337.5, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [348.75, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [81.562, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [84.375, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [87.188, 0, 0]}]
 
 # Visible riders. The rider ring is a seated rider-pair (carousel_rider.obj,
 # mesh 1) the engine draws over the structure, recoloured per rider by the

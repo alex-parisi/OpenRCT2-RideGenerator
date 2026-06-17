@@ -63,23 +63,35 @@ def _flat_ride_animation(context, scene, objects) -> tuple[list[Mesh], list[list
     """Sample the scene's keyframed spin into the ride's rotation frames.
 
     This is the Blender-animator path for moving rides: the author keyframes one
-    seamless loop of the spin across the scene's frame range (a full turn for the
-    carousel, one gondola-spacing for the ferris wheel), and this samples
-    ``FLAT_RIDE_SPECS[type].frames`` evenly-spaced poses across it. The range is
-    treated cyclically (end-exclusive) so the seam pose -- where the loop wraps
-    back to the start -- is not duplicated. Geometry is extracted once at the
-    rest frame (the parts spin rigidly); each pose then records every part's
-    rotation relative to rest, exactly the multi-frame model the core renders
-    frame by frame and the engine cycles to animate the ride.
+    seamless loop of the motion across the scene's frame range (a full turn for the
+    carousel and twist, one gondola-spacing for the ferris wheel), and this samples
+    ``FLAT_RIDE_SPECS[type].frames`` evenly-spaced structure poses across it. The
+    range is treated cyclically (end-exclusive) so the seam pose -- where the loop
+    wraps back to the start -- is not duplicated.
+
+    For the single-direction symmetric rides the structure ring is only one
+    symmetry period of the turn: the engine loops it ``structure_loops_per_turn``
+    times per revolution (twist 9, carousel 4) while the rider ring sweeps the full
+    turn, so the structure must rotate at the riders' rate. We therefore sample the
+    structure poses across only the first ``1 / structure_loops_per_turn`` of the
+    keyframed loop -- a full turn baked into all ``n`` structure frames would spin
+    the structure that many times too fast relative to its riders.
+
+    Geometry is extracted once at the rest frame (the parts spin rigidly); each
+    pose then records every part's rotation relative to rest, exactly the
+    multi-frame model the core renders frame by frame and the engine cycles to
+    animate the ride.
     """
     ss = scene.vgr_stall
-    n = FLAT_RIDE_SPECS[ss.stall_type].frames
+    spec = FLAT_RIDE_SPECS[ss.stall_type]
+    n = spec.frames
+    loops = spec.structure_loops_per_turn
     f_start, f_end = scene.frame_start, scene.frame_end
     if f_end <= f_start:
         sampled = [f_start] * n
     else:
         period = f_end - f_start + 1
-        sampled = [f_start + round(i * period / n) % period for i in range(n)]
+        sampled = [f_start + round(i * period / (n * loops)) % period for i in range(n)]
 
     orig_frame = scene.frame_current
     meshes: list[Mesh] = []

@@ -8,13 +8,16 @@ output_directory: .
 
 # Animated 3x3 flat ride (thrill category). Like the merry-go-round, the whole
 # structure is one vehicle sprite the engine spins by cycling a ring of rotation
-# frames, so it is authored ONCE (twist.obj, centred on the middle tile) and the
-# animation below supplies one pose per frame: a full 360-degree turn about +Y
-# in 24 even steps (twist needs exactly 24). The engine reuses the single ring
-# for every view direction (Twist.cpp: base + frameNum % 24), so the platform is
-# built 4-fold symmetric. In Blender you keyframe the spin and the add-on samples
-# the 24 poses for you. The 216 rider slots carry the visible riders
-# (rider_animation, below); capacity defaults to 18.
+# frames, so it is authored ONCE (twist.obj, centred on the middle tile). The
+# platform is 9-fold symmetric (nine cups), and the engine loops these 24 frames
+# NINE times per revolution (Twist.cpp: base + frameNum % 24) while the 216 rider
+# overlays sweep the full turn. So the 24 poses below span only ONE cup spacing
+# (360/9 = 40 degrees) about +Y in 24 even steps, NOT a full turn -- the platform
+# must rotate at the riders' rate, or the cups spin 9x too fast. The single ring
+# is reused for every view direction. In Blender you keyframe one full turn and
+# the add-on samples the structure's 40-degree slice and the riders' full turn for
+# you. The 216 rider slots carry the visible riders (rider_animation, below);
+# capacity defaults to 18.
 ride_type: twist
 
 # The canopy + tubs are Remap1 (main colour) and the base platform is Remap2
@@ -32,29 +35,29 @@ meshes:
 animation:
   frames:
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [0, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [1.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [3.333, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [5, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [6.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [8.333, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [10, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [11.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [13.333, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [15, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [16.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [18.333, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [20, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [21.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [23.333, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [25, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [26.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [28.333, 0, 0]}]
     - [{mesh_index: 0, position: [0, 0, 0], orientation: [30, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [45, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [60, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [75, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [90, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [105, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [120, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [135, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [150, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [165, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [180, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [195, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [210, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [225, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [240, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [255, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [270, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [285, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [300, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [315, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [330, 0, 0]}]
-    - [{mesh_index: 0, position: [0, 0, 0], orientation: [345, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [31.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [33.333, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [35, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [36.667, 0, 0]}]
+    - [{mesh_index: 0, position: [0, 0, 0], orientation: [38.333, 0, 0]}]
 
 # Visible riders. One tub's rider-pair (twist_rider.obj, mesh 1) the engine
 # draws over the structure, recoloured per rider by the peep's t-shirt colour

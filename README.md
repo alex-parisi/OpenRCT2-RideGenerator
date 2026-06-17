@@ -81,20 +81,26 @@ but the enclosed motion simulator ships visible riders today). Four layouts ship
 today:
 
 - **`merry_go_round`** — a 3x3 carousel, centred on the middle tile. The engine
-  folds the camera rotation out (`base + frame`), so the ring is a single
-  symmetric spin reused for every view direction: **32 poses**, a full turn
-  about +Y. Build it roughly **4-fold symmetric**. (+68 rider slots — one seat's
-  pair on the front-visible arc; default 16 seats.)
+  folds the camera rotation out (`rotationOffset & 0x1F`), so the ring is a single
+  symmetric spin reused for every view direction, and it **loops the 32 poses four
+  times per revolution** while the riders sweep the full turn. Build it **4-fold
+  symmetric** and make the **32 poses span one quarter turn (90°)** about +Y — a
+  full turn baked into the 32 poses would spin the structure 4× too fast relative
+  to its riders. (+68 rider slots — one seat's pair on the front-visible arc;
+  default 16 seats.)
 - **`ferris_wheel`** — a 1x4 vertical wheel. It is *not* vertically symmetric, so
   the engine stores **4 directions × 8 poses** (`base + direction*8 + frame`).
   The A-frame legs are base-game graphics, so the object provides only the
   rotating wheel and its gondolas (which orbit but stay upright); the 8 poses
   span one gondola spacing so an 8-fold wheel loops seamlessly. (+512 rider slots
   — one gondola's pair orbiting the axle, 4 directions × 128; default 32 seats.)
-- **`twist`** — a 3x3 spinning platform (a thrill ride). Like the carousel it is
-  one symmetric ring the engine reuses for every view (`base + frame % 24`), so
-  build it roughly **4-fold symmetric** and keyframe a full turn about +Y in
-  **24 poses**. (+216 rider slots, default 18 seats.)
+- **`twist`** — a 3x3 spinning platform of cups (a thrill ride). Like the carousel
+  it is one symmetric ring the engine reuses for every view (`base + frameNum %
+  24`), and it **loops the 24 poses nine times per revolution** while the 216 rider
+  overlays sweep the full turn. Build it **9-fold symmetric** (nine cups) and make
+  the **24 poses span one cup spacing (40°)** about +Y — a full turn baked into the
+  24 poses would spin the cups 9× too fast relative to the riders in them.
+  (+216 rider slots, default 18 seats.)
 - **`enterprise`** — a 4x4 wheel of enclosed pods (a thrill ride). The pods are
   *rigidly attached* and rotate with the wheel (riders invert), unlike the ferris
   wheel's upright gondolas, so the whole structure is one rigid spin. It is not
@@ -160,6 +166,57 @@ The rider layout is the engine's, so each ride has a fixed shape:
 The motion simulator's pod is enclosed, so it has no riders. Riders reuse the
 same per-ride conventions as base-game sprites (orbit phase, seat radius, the
 enterprise's folded angles), so their exact alignment is best checked in-game.
+
+### Animating in Blender
+
+Each ride type has a fixed **animation style** the engine expects, and the add-on
+only *samples* the motion you keyframe into that style — it does not invent motion.
+So an animator has to keyframe the right kind of motion for the chosen ride, and a
+handful of quirks bite if you don't. The rules that apply to every flat ride:
+
+- **Keyframe exactly one clean loop over the scene frame range.** The add-on
+  samples `frame_start … frame_end` into the ride's pose count, so the first and
+  last frames are the same instant of a seamless cycle. Author one full turn (or
+  one full swing/tumble), not several.
+- **Use Linear interpolation for the cycle** (no ease-in/ease-out). The engine
+  plays the sampled poses back at its **own constant speed**; Bezier easing bakes
+  a speed-up/slow-down into the poses, which reads in-game as a stutter or even a
+  reversal. You set the *poses*, the engine sets the *timing*.
+- **Don't model the base-game parts.** Several rides reuse vanilla graphics for
+  their fixed structure — the ferris wheel's A-frame legs, the enterprise's truss,
+  the motion simulator's boarding stairs, the swinging ship's A-frame. Model only
+  the moving piece; the static support is drawn by the engine and your part must
+  line up with it (check in-game).
+- **The single-view spinners must be rotationally symmetric.** `merry_go_round`
+  and `twist` render *one* view that the engine reuses for all four camera angles,
+  *and* it loops their structure ring several times per revolution (the carousel
+  4×, the twist 9×) while the riders sweep the full turn. So the structure must be
+  symmetric about the spin axis — the carousel **4-fold**, the twist **9-fold**
+  (nine cups) — or it looks wrong from three camera angles and the loop stutters.
+  You still keyframe one full turn; the add-on samples the structure over just its
+  symmetry slice (90° / 40°) and the riders over the full turn for you. The
+  four-direction rides don't have this constraint.
+- **Model one rider unit; the engine replicates it.** Where a ride carries riders
+  you author a *single* seat's rider-pair (or, for the swinging ship, one bench
+  row) and give it the **Rider** role — the engine clones it around the ride. The
+  twist is the classic trap: place nine riders and the engine clones each into
+  nine, giving 81 peeps.
+
+Per-ride quirks to keep in mind while animating:
+
+| Ride               | Motion to keyframe                          | Watch out for |
+|--------------------|---------------------------------------------|---------------|
+| `merry_go_round`   | One full 360° turn about +Y.                 | Single view; must be **4-fold symmetric** (the add-on bakes the structure as a 90° slice). |
+| `ferris_wheel`     | One full turn of the wheel about the axle.   | Gondolas orbit but stay **upright**; don't model the A-frame legs. |
+| `twist`            | One full 360° turn about +Y.                 | Single view; must be **9-fold symmetric** (nine cups; the structure bakes as a 40° slice); use **one** rider-pair — the engine clones it into 9 (81 peeps if you place 9). |
+| `enterprise`       | One full turn of the tilted wheel.           | Pods are **rigid**, so riders invert at the top; don't model the truss. |
+| `motion_simulator` | The pod's **pitch/roll** — *not* a spin.     | Frames 0–3 are the level restraint-load pose (author a level pose at the very start of the timeline), then the buck-and-roll; no riders; don't model the stairs. |
+| `swinging_ship`    | A natural **back-and-forth swing** — *not* a spin. | One Rider object per bench row, named in row order; don't model the A-frame. |
+| `space_rings`      | One full **tumble** of a single ring about its axle. | The engine spawns four rings across the footprint; the rider tumbles with the ring. |
+
+> Adding a flat ride? Keep this table, the `FLAT_RIDE_ANIM_HINTS` shown in the
+> Blender N-panel (`ride_renderer_addon/props.py`), and the engine-mechanics
+> bullets above in sync, so animators get the same guidance everywhere.
 
 ### CLI Quickstart
 

@@ -15,6 +15,7 @@ from openrct2_ride_generator.sprite_renderer import (
     render_shop,
     split_door_strip,
 )
+from openrct2_x7_renderer.constants import MeshFlag
 from openrct2_x7_renderer.mesh import Mesh, load_mesh
 from openrct2_x7_renderer.types import IndexedImage, MeshFrame, Model
 
@@ -142,6 +143,30 @@ def test_render_flat_ride_twist_single_direction(tmp_path):
     assert len(images) == 240
     assert sum(1 for e in ctx.events if e == "begin") == 24
     assert all(img.width == 1 and img.height == 1 for img in images[24:])
+
+
+def test_render_flat_ride_twist_masks_riders_with_structure(tmp_path):
+    # The twist's rider ring is rendered with the structure as a depth-mask
+    # occluder so far-side riders are clipped behind the canopy instead of painted
+    # over it. Each of the 216 rider sprites opens a scene that adds the structure
+    # as a MASK (mask=1) plus the drawn rider (mask=0); the 24 structure frames add
+    # no mask occluders.
+    ctx = FakeContext()
+    rider = Model(meshes=[[
+        MeshFrame(mesh_index=1, orientation=np.array([s * 360.0 / 216, 0, 0]))
+        for s in range(216)
+    ]])
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI), _mesh(tmp_path, _TRI, "r.obj")], _spin_model(24),
+        rider, "twist",
+    )
+    assert len(images) == 240
+    # 24 structure + 216 rider scenes, each opening a render.
+    assert sum(1 for e in ctx.events if e == "begin") == 240
+    # One masked structure occluder added per rider frame (none for the structure
+    # ring), so exactly 216 mask=1 adds for the simple single-submesh meshes.
+    mask_adds = sum(1 for e in ctx.events if e == ("add", int(MeshFlag.MASK)))
+    assert mask_adds == 216
 
 
 def test_render_flat_ride_carousel_renders_riders(tmp_path):
@@ -314,6 +339,19 @@ def test_render_flat_ride_empty_pose_blanks(tmp_path):
     assert len(images) == 100
     assert sum(1 for e in ctx.events if e == "begin") == 0
     assert all(img.width == 1 and img.height == 1 for img in images[:32])
+
+
+def test_render_flat_ride_twist_masked_empty_rider_pose_blank(tmp_path):
+    # An empty rider pose (mesh_index -1) in the masked twist path renders a blank
+    # without opening a scene, even though the structure occluder is available.
+    ctx = FakeContext()
+    images = render_flat_ride(
+        ctx, [_mesh(tmp_path, _TRI)], _spin_model(24), _spin_model(216, -1), "twist"
+    )
+    assert len(images) == 240
+    # Only the 24 structure poses open a scene; the 216 empty rider poses do not.
+    assert sum(1 for e in ctx.events if e == "begin") == 24
+    assert all(img.width == 1 and img.height == 1 for img in images[24:])
 
 
 def test_render_building_haunted_house_appends_blank_overlays(tmp_path):
