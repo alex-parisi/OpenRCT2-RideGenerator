@@ -397,9 +397,10 @@ def ferris_rider():
 
 # The twist's visible riders: one tub's rider-pair, rendered at 216 rotation
 # phases of the full turn (Twist.cpp `base + 24 + (frameNum + seat*12) % 216`),
-# single view. Authored in a rim tub (radius 1.5 along +X); the rider ring rotates
-# it about +Y like the platform. Remap1 / Remap2 are the two shirts.
-TWIST_RIDER_RADIUS = 1.5
+# single view. Authored at radius 3.25 along +X, matching the structure's rim
+# channel; the rider ring rotates it about +Y like the platform. Remap1 / Remap2
+# are the two shirts.
+TWIST_RIDER_RADIUS = 3.25
 TWIST_RIDER_FRAMES = 216
 
 
@@ -407,13 +408,14 @@ def twist_rider():
     o = ObjBuilder(
         "Twist riders (placeholder): a seated pair in a rim tub.\n"
         "# Remap1 / Remap2 are the two riders' shirts. Authored at tub 0 (radius\n"
-        "# 1.5 along +X); the rider ring rotates it about +Y to each of 216 phases."
+        "# 3.5 along +X, seated low so torso + head rise clear of the tub rim); the\n"
+        "# rider ring rotates it about +Y to each of 216 phases."
     )
     cx = TWIST_RIDER_RADIUS
-    for mat, z0, z1 in (("Remap1", -0.26, -0.02), ("Remap2", 0.02, 0.26)):
-        o.box(mat, cx - 0.2, cx + 0.2, 1.0, 1.45, z0, z1)  # torso
-        o.box("Skin", cx - 0.1, cx + 0.1, 1.45, 1.66, (z0 + z1) / 2 - 0.1,
-              (z0 + z1) / 2 + 0.1)  # head
+    for mat, z0, z1 in (("Remap1", -0.28, -0.04), ("Remap2", 0.04, 0.28)):
+        o.box(mat, cx - 0.22, cx + 0.22, 0.45, 0.9, z0, z1)  # torso
+        o.box("Skin", cx - 0.13, cx + 0.13, 0.9, 1.16, (z0 + z1) / 2 - 0.13,
+              (z0 + z1) / 2 + 0.13)  # head
     o.write(BUILD / "twist_rider.obj")
 
 
@@ -487,21 +489,29 @@ TWIST_FRAMES = 24
 
 def twist():
     o = ObjBuilder(
-        "Twist (twist flat ride): a 4-fold-symmetric spinning platform with tubs.\n"
+        "Twist (twist flat ride): a spinning rim of tubs under a parasol.\n"
         "# Authored centred on the middle tile, spun about +Y by animation.frames\n"
         "# (one symmetric ring the engine reuses for every view, like the carousel)."
     )
-    # Base platform disc (trim colour) + central pole and canopy.
-    o.ngon_prism("Remap2", 0, 0, 2.2, 0.0, 0.3, n=16, bottom=True, top=True)
-    o.ngon_prism("Brass", 0, 0, 0.24, 0.3, 2.6, n=8)
-    o.cone("Remap1", 0, 0, 1.0, 2.6, 3.5, n=12)
-    # Four tubs at the rim, 4-fold symmetric so the single rendered view holds for
-    # every camera direction.
-    for k in range(4):
-        a = 2 * math.pi * k / 4
-        cx, cz = 1.5 * math.cos(a), 1.5 * math.sin(a)
-        o.ngon_prism("Remap1", cx, cz, 0.62, 0.3, 1.0, n=8, bottom=True, top=False)
-        o.ngon_prism("Wood", cx, cz, 0.66, 0.95, 1.08, n=8, bottom=False, top=False)
+    # Sized to fill most of its 3x3 footprint (3 tiles = 9.9 units across) while
+    # staying LOW: a broad base platform disc (trim colour), a short central pole,
+    # and a small parasol so the silhouette stays contained in the plot instead of
+    # towering up and leaning into the back tiles.
+    o.ngon_prism("Remap2", 0, 0, 4.2, 0.0, 0.35, n=24, bottom=True, top=True)
+    o.ngon_prism("Brass", 0, 0, 0.3, 0.35, 2.1, n=8)
+    o.cone("Remap1", 0, 0, 1.7, 2.1, 2.7, n=24)
+    o.ngon_prism("Brass", 0, 0, 0.15, 2.7, 2.85, n=6)  # finial
+    # The tubs form ONE continuous rim channel, not discrete pods. Twist.cpp draws
+    # the structure as a single 24-frame ring reused for every camera direction
+    # (`base + frameNum % 24`), so the rim must be 4-fold symmetric; yet it then
+    # scatters the rider-pairs at NINE positions 40 deg apart (`for i in 0,2,..,16:
+    # (frame + i*12) % 216`). Nine is not a multiple of four, so no discrete tub
+    # count can both stay symmetric and seat a rider at every position -- only a
+    # smooth annular channel does. Riders (twist_rider.obj, radius 3.25) sit in it.
+    o.ngon_prism("Remap1", 0, 0, 3.7, 0.35, 0.85, n=24, top=False, bottom=False)  # outer wall
+    o.ngon_prism("Wood", 0, 0, 3.75, 0.81, 0.92, n=24, top=False, bottom=False)  # outer rim lip
+    o.ngon_prism("Remap1", 0, 0, 2.8, 0.35, 0.85, n=24, top=False, bottom=False)  # inner wall
+    o.ngon_prism("Wood", 0, 0, 2.75, 0.81, 0.92, n=24, top=False, bottom=False)  # inner rim lip
     o.write(BUILD / "twist.obj")
 
 

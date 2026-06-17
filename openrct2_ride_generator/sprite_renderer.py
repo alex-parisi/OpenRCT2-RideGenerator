@@ -13,13 +13,12 @@ from openrct2_object_common.export import ProgressFn
 from openrct2_object_common.sprite_render import (
     center_in_box,
     render_corner_anchored_view,
-    render_scene_view,
     trim,
 )
 from openrct2_x7_renderer.constants import TILE_SIZE
 from openrct2_x7_renderer.geometry import combine_model_world
 from openrct2_x7_renderer.mesh import Mesh
-from openrct2_x7_renderer.ray_trace import VIEWS, Context
+from openrct2_x7_renderer.ray_trace import Context
 from openrct2_x7_renderer.types import IndexedImage, Model
 
 from .constants import (
@@ -32,10 +31,6 @@ from .constants import (
     STALL_TYPES,
     StallKind,
 )
-
-# The animated flat ride's structure is a vehicle sprite anchored at the entity
-# centre (the tile origin), not a tile corner.
-_FLAT_RIDE_ANCHOR = np.zeros(3, dtype=np.float64)
 
 
 def count_stall_sprites(stall_type: str) -> int:
@@ -101,10 +96,15 @@ def render_building(
 
 
 def _render_pose(context: Context, combined: Mesh, direction: int) -> IndexedImage:
-    """One baked pose rendered from a view direction (blank if it has no geometry)."""
-    if combined.faces.shape[0] == 0:
-        return IndexedImage.blank(1, 1)
-    return render_scene_view(context, combined, _FLAT_RIDE_ANCHOR, VIEWS[direction])
+    """One baked pose rendered from a view direction (blank if it has no geometry).
+
+    OpenRCT2's flat-ride structure painter draws the sprite at the tile's
+    per-direction reference CORNER (paint offset ``{0,0}`` of the centre tile, e.g.
+    ``Twist.cpp`` ``paint_twist_structure``'s ``{xOffset, yOffset, height}``), not
+    the tile centre -- the same corner anchoring as stalls and large scenery. So a
+    pose is corner-anchored too; centre-anchoring would sit the whole structure
+    half a tile toward the back corner."""
+    return render_corner_anchored_view(context, combined, direction)
 
 
 def _render_ring(
@@ -169,9 +169,10 @@ def render_flat_ride(
     """Render an animated flat ride sprite set: the structure ring (one image per
     view direction and animation pose), followed by the rider ring.
 
-    The structure is a vehicle sprite anchored at the tile centre. Each pose bakes
-    one frame of the multi-frame ``model`` (the Blender-authored spin); the camera
-    direction is the world rotation ``VIEWS[d]``. The merry-go-round is rotationally
+    The structure is a vehicle sprite anchored at the centre tile's per-direction
+    reference corner (see :func:`_render_pose`). Each pose bakes one frame of the
+    multi-frame ``model`` (the Blender-authored spin); the camera direction is the
+    world rotation ``VIEWS[d]``. The merry-go-round is rotationally
     symmetric, so it stores a single direction (the engine folds the camera rotation
     out and reuses the ring); the ferris wheel is not, so it stores all four
     (``FerrisWheel.cpp`` reads ``base + direction * 8 + frame``).

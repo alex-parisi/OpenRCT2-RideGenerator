@@ -231,18 +231,17 @@ def test_render_flat_ride_riders_blank_without_geometry(tmp_path):
 
 
 def _render_view_directions(monkeypatch, ride_type, frames):
-    """Record the view direction passed to render_scene_view for each structure
-    image, so the ring's image order can be asserted."""
+    """Record the view direction passed to the corner-anchored render for each
+    structure image, so the ring's image order can be asserted."""
     import openrct2_ride_generator.sprite_renderer as sr
-    from openrct2_x7_renderer.ray_trace import VIEWS
 
     seen = []
 
-    def spy(context, mesh, anchor, view):
-        seen.append(next(i for i, v in enumerate(VIEWS) if v is view))
+    def spy(context, mesh, direction, **kwargs):
+        seen.append(direction)
         return IndexedImage.blank(1, 1)
 
-    monkeypatch.setattr(sr, "render_scene_view", spy)
+    monkeypatch.setattr(sr, "render_corner_anchored_view", spy)
     ctx = FakeContext()
     images = sr.render_flat_ride(
         ctx, [_mesh_for(frames)], _spin_model(frames), Model(), ride_type
@@ -285,7 +284,7 @@ def test_render_flat_ride_swinging_ship_interleaved_blanks(monkeypatch, tmp_path
     marker = IndexedImage(
         width=2, height=2, x_offset=0, y_offset=0, pixels=np.ones((2, 2), dtype=np.uint8)
     )
-    monkeypatch.setattr(sr, "render_scene_view", lambda *a, **k: marker)
+    monkeypatch.setattr(sr, "render_corner_anchored_view", lambda *a, **k: marker)
     ctx = FakeContext()
     images = sr.render_flat_ride(
         ctx, [_mesh(tmp_path, _TRI)], _spin_model(19), Model(), "swinging_ship"
