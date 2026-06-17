@@ -1,7 +1,7 @@
-# Twist riders (placeholder): a seated pair in a rim tub.
-# Remap1 / Remap2 are the two riders' shirts. Authored at tub 0 (radius
-# 3.5 along +X, seated low so torso + head rise clear of the tub rim); the
-# rider ring rotates it about +Y to each of 216 phases.
+# Twist riders (placeholder): a seated pair in a rim cup.
+# Remap1 / Remap2 are the two riders' shirts. Authored in cup 0 (at the
+# cup-orbit radius along +X, seated low so torso + head rise clear of the
+# cup rim); the rider ring orbits it about +Y to each of 216 phases.
 # OBJ space: +X forward, +Y up, +Z right; origin at footprint-base centre.
 mtllib materials.mtl
 

@@ -395,21 +395,22 @@ def ferris_rider():
     o.write(BUILD / "ferris_rider.obj")
 
 
-# The twist's visible riders: one tub's rider-pair, rendered at 216 rotation
+# The twist's visible riders: one cup's rider-pair, rendered at 216 rotation
 # phases of the full turn (Twist.cpp `base + 24 + (frameNum + seat*12) % 216`),
-# single view. Authored at radius 3.25 along +X, matching the structure's rim
-# channel; the rider ring rotates it about +Y like the platform. Remap1 / Remap2
-# are the two shirts.
-TWIST_RIDER_RADIUS = 3.25
+# single view. The rider's seat IS a cup: it is authored at the cup-orbit radius
+# (TWIST_CUP_RADIUS, along +X), so it sits in cup 0 and the rider ring orbits it
+# about +Y to the other eight. Remap1 / Remap2 are the two shirts.
+TWIST_CUP_RADIUS = 3.25  # shared by the cups (twist) and the rider seat (below)
+TWIST_RIDER_RADIUS = TWIST_CUP_RADIUS
 TWIST_RIDER_FRAMES = 216
 
 
 def twist_rider():
     o = ObjBuilder(
-        "Twist riders (placeholder): a seated pair in a rim tub.\n"
-        "# Remap1 / Remap2 are the two riders' shirts. Authored at tub 0 (radius\n"
-        "# 3.5 along +X, seated low so torso + head rise clear of the tub rim); the\n"
-        "# rider ring rotates it about +Y to each of 216 phases."
+        "Twist riders (placeholder): a seated pair in a rim cup.\n"
+        "# Remap1 / Remap2 are the two riders' shirts. Authored in cup 0 (at the\n"
+        "# cup-orbit radius along +X, seated low so torso + head rise clear of the\n"
+        "# cup rim); the rider ring orbits it about +Y to each of 216 phases."
     )
     cx = TWIST_RIDER_RADIUS
     for mat, z0, z1 in (("Remap1", -0.28, -0.04), ("Remap2", 0.04, 0.28)):
@@ -487,11 +488,13 @@ def swinging_ship_rider():
 TWIST_FRAMES = 24
 
 
+TWIST_CUPS = 9
+
+
 def twist():
     o = ObjBuilder(
-        "Twist (twist flat ride): a spinning rim of tubs under a parasol.\n"
-        "# Authored centred on the middle tile, spun about +Y by animation.frames\n"
-        "# (one symmetric ring the engine reuses for every view, like the carousel)."
+        "Twist (twist flat ride): a spinning ring of cups under a parasol.\n"
+        "# Authored centred on the middle tile, spun about +Y by animation.frames."
     )
     # Sized to fill most of its 3x3 footprint (3 tiles = 9.9 units across) while
     # staying LOW: a broad base platform disc (trim colour), a short central pole,
@@ -501,17 +504,17 @@ def twist():
     o.ngon_prism("Brass", 0, 0, 0.3, 0.35, 2.1, n=8)
     o.cone("Remap1", 0, 0, 1.7, 2.1, 2.7, n=24)
     o.ngon_prism("Brass", 0, 0, 0.15, 2.7, 2.85, n=6)  # finial
-    # The tubs form ONE continuous rim channel, not discrete pods. Twist.cpp draws
-    # the structure as a single 24-frame ring reused for every camera direction
-    # (`base + frameNum % 24`), so the rim must be 4-fold symmetric; yet it then
-    # scatters the rider-pairs at NINE positions 40 deg apart (`for i in 0,2,..,16:
-    # (frame + i*12) % 216`). Nine is not a multiple of four, so no discrete tub
-    # count can both stay symmetric and seat a rider at every position -- only a
-    # smooth annular channel does. Riders (twist_rider.obj, radius 3.25) sit in it.
-    o.ngon_prism("Remap1", 0, 0, 3.7, 0.35, 0.85, n=24, top=False, bottom=False)  # outer wall
-    o.ngon_prism("Wood", 0, 0, 3.75, 0.81, 0.92, n=24, top=False, bottom=False)  # outer rim lip
-    o.ngon_prism("Remap1", 0, 0, 2.8, 0.35, 0.85, n=24, top=False, bottom=False)  # inner wall
-    o.ngon_prism("Wood", 0, 0, 2.75, 0.81, 0.92, n=24, top=False, bottom=False)  # inner rim lip
+    # NINE open cups around the rim -- one per rider-pair. Twist.cpp scatters the
+    # riders at nine positions 40 deg apart (`for i in 0,2,..,16: (frameNum + i*12)
+    # % 216`; capacity 18 = 9 pairs), so nine cups seat every rider. Riders and cups
+    # share `frameNum`, so they stay locked together from every view as the ring
+    # spins. The rider (twist_rider.obj) is authored at the SAME radius (cup 0, along
+    # +X), i.e. the rider's seat IS a cup; the engine orbits that one pair to all 9.
+    for k in range(TWIST_CUPS):
+        a = 2 * math.pi * k / TWIST_CUPS
+        cx, cz = TWIST_CUP_RADIUS * math.cos(a), TWIST_CUP_RADIUS * math.sin(a)
+        o.ngon_prism("Remap1", cx, cz, 0.6, 0.35, 0.78, n=8, bottom=True, top=False)  # cup
+        o.ngon_prism("Wood", cx, cz, 0.64, 0.74, 0.86, n=8, top=False, bottom=False)  # rim
     o.write(BUILD / "twist.obj")
 
 
